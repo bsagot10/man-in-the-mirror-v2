@@ -105,6 +105,10 @@ man-in-the-mirror-next/
 - Tailwind utilities for layout and responsive design
 - Color system: green (bullish/positive), red (bearish/negative), yellow (warning)
 - Theme: Studio Ghibli-inspired warm palette (Noto Sans font, warm cream/beige/amber colors)
+- Header background: `rgba(254, 246, 228, 0.85)` for warm cream consistency
+- Overflow handling: Use `overflow-x: hidden` on containers, `overflow: visible` on cards
+- Responsive: Reduce padding/font sizes on narrow viewports, use `flex-wrap` on headers
+- Card headers: 12px/16px padding, 0.8rem font size, with gap for wrapping
 - Accessibility: Include `aria-label` on metric boxes, skip-to-content link in layout
 
 **Error Handling:**
@@ -124,9 +128,14 @@ export interface ComponentProps { ... }
 
 // 2. Constants
 const MAX_VALUE = 100;
+const UNIFIED_VISUAL_MAX = 100;  // For proportional bar comparisons
 
 // 3. Helper functions
 function calculateValue(...) { ... }
+function calculateBarWidth(score: number, visualMax: number = UNIFIED_VISUAL_MAX): string {
+  const percentage = Math.min((score / visualMax) * 100, 100);
+  return `${percentage}%`;
+}
 
 // 4. Sub-components (if needed)
 function SubComponent(...) { ... }
@@ -138,6 +147,30 @@ export function Component({ ...props }: ComponentProps) {
 
   // Main render
   return <div data-testid="component">...</div>
+}
+```
+
+**Visual Comparison Pattern:**
+```typescript
+// For score bars with different max values, use unified scale for visual comparison
+// while maintaining accurate aria attributes for accessibility
+
+const MAX_VOLATILITY_SCORE = 50;
+const MAX_TREND_SCORE = 30;
+const MAX_DECAY_SCORE = 30;
+const UNIFIED_VISUAL_MAX = 100;  // All bars scaled to 100 for comparison
+
+function ScoreBar({ score, maxScore }: { score: number; maxScore: number }) {
+  return (
+    <div
+      className="score-fill"
+      style={{ width: calculateBarWidth(score, UNIFIED_VISUAL_MAX) }}  // Visual: unified scale
+      role="progressbar"
+      aria-valuenow={score}
+      aria-valuemin={0}
+      aria-valuemax={maxScore}  // Accessibility: actual max
+    />
+  );
 }
 ```
 
