@@ -147,6 +147,7 @@ export function DecayOpportunityChart({
           shape: SPLINE_CONFIG.shape,
           smoothing: SPLINE_CONFIG.smoothing,
           width: SPLINE_CONFIG.width,
+          dash: 'solid',  // Explicitly solid to ensure legend marker is a solid bar
         },
         fill: 'tozeroy' as const,
         fillcolor: 'rgba(76, 175, 80, 0.2)',
@@ -230,15 +231,19 @@ export function DecayOpportunityChart({
         fixedrange: false,
       },
       yaxis: {
-        title: { text: 'Decay %' },
+        title: { text: 'Decay %', standoff: 15 },
         ...AXIS_CONFIG,
-        autorange: true,
+        // Calculate range with top padding for legend visibility
+        range: decayValues.length > 0
+          ? [Math.min(...decayValues) - 0.5, Math.max(...decayValues) + 2]
+          : undefined,
+        autorange: decayValues.length === 0,
         tickformat: '.2f',
         ticksuffix: '%',
       },
       shapes,
     };
-  }, [title, height, shapes]);
+  }, [title, height, shapes, decayValues]);
 
   // Plot configuration
   const config: Partial<Config> = {
