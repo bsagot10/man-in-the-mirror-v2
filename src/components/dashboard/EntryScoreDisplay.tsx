@@ -70,7 +70,7 @@ function ScoreBar({ label, score, maxScore, testId, ariaLabel, loading }: ScoreB
   // Keep actual maxScore for aria attributes for accessibility
   return (
     <div className="score-item" aria-label={ariaLabel}>
-      <span className="score-label text-xs font-medium text-warm-600 uppercase tracking-wide">
+      <span className="score-label">
         {label}
       </span>
       <div

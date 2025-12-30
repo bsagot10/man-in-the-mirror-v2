@@ -105,17 +105,25 @@ man-in-the-mirror-next/
 - Mock external dependencies (fetch, next/dynamic)
 
 **Styling:**
-- Custom classes: `ghibli-card`, `card-header`, `card-content`, `metric-box`, `right-column`, `left-column`, `center-column`
+- Custom classes: `ghibli-card`, `card-header`, `card-content`, `metric-box`, `right-column`, `left-column`, `center-column`, `cached-indicator`, `header`, `main-title`, `subtitle`, `header-controls`, `last-update`, `main-content`, `info-row`, `score-fill`, `score-details`, `score-item`, `score-label`, `position-table`
+- CSS variables in `:root` define theme colors (primary-green, soft-green, warm-cream, warm-beige, warm-amber, earth-brown, forest-shadow, positive, negative, warning, info, card-bg, card-border, text-primary/secondary/tertiary, divider)
 - Tailwind utilities for layout and responsive design
+- Google Fonts import: Noto Sans (weights: 400, 500, 600, 700) with display=swap
 - Color system: green (bullish/positive), red (bearish/negative), yellow (warning)
 - Theme: Studio Ghibli-inspired warm palette (Noto Sans font, warm cream/beige/amber colors)
-- Header background: `rgba(254, 246, 228, 0.85)` for warm cream consistency
-- Overflow handling: Use `overflow-x: hidden` on containers, `overflow: hidden` on right-column cards (clips content to rounded corners)
-- Card header border-radius: Right-column cards require explicit `border-radius: 12px 12px 0 0` on `.card-header` to match parent card corners
-- Responsive: Reduce padding/font sizes on narrow viewports, use `flex-wrap` on headers
-- Card headers: 12px/16px padding, 0.8rem font size, with gap for wrapping
+- Body gradient: `linear-gradient(135deg, #fef6e4 0%, #f7e8d0 100%)`
+- Header background: `rgba(254, 246, 228, 0.85)` with backdrop-filter blur for glassmorphism
+- Card styling: 12px border-radius, glassmorphism effect with `backdrop-filter: blur(16px) saturate(180%)`, hover transform
+- Right-column card overflow: Use `overflow: hidden` with `position: relative` and `z-index: 1` to clip content to rounded corners
+- Right-column card shadows: Reduced blur (`0 4px 12px rgba(139, 111, 71, 0.08)`) with inset highlight to prevent gap bleed
+- Right-column card stacking: Incremental z-index (`z-index: 2` for subsequent cards) ensures shadows don't overlap
+- Right-column card headers: Explicit `border-radius: 12px 12px 0 0` to match parent card corners and prevent dark corners
+- Card headers: 12px/16px padding, 0.8rem font size, gradient background, flex layout with justify-between
+- Score details: 12px padding (reduced from 16px), transparent background (was rgba(255,255,255,0.3)), 10px gap between items, font-family: inherit
+- Score items: Grid layout with 110px label, flexible bar, 24px value (optimized for longer bars), font-family: inherit on label/value
+- Position table: 8px/6px padding, 0.7rem header font size, specific column widths with min-widths (Symbol: 17%/48px, Shares: 14%/42px, Entry: 22%/58px, Current: 22%/58px, P&L: 25%/62px)
+- Responsive: Reduce padding/font sizes on narrow viewports, use `flex-wrap` on headers with gap for wrapping
 - Table headers: Abbreviated for mobile UX (Sym, Shr, Entry, Curr, P&L)
-- Shadow constraints: Right column cards use reduced shadow (`0 4px 12px rgba(139, 111, 71, 0.08)`) to prevent blur bleeding into 16px gaps
 - Accessibility: Include `aria-label` on metric boxes, skip-to-content link in layout
 
 **Error Handling:**

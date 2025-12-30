@@ -754,26 +754,28 @@ body {
 
   /* Score Details */
   .score-details {
-    padding: 16px;
+    padding: 12px;  /* Reduced from 16px - moves content left */
     border-radius: 8px;
-    background: rgba(255, 255, 255, 0.3);
+    background: transparent;  /* Was rgba(255,255,255,0.3) - now matches card */
+    font-family: inherit;
   }
 
   .score-item {
     display: grid;
-    gap: 12px;
+    gap: 6px;  /* Tighter gap - bars closer to numbers */
     margin-bottom: 16px;
     align-items: center;
-    grid-template-columns: 110px 1fr 35px;  /* Fixed label width for alignment */
+    grid-template-columns: 115px 1fr 20px;  /* Wider label, narrower score col */
   }
 
   .score-label {
-    font-size: 0.7rem;
+    font-size: 0.8rem;  /* Match recommendations text size */
     font-weight: 600;
     text-transform: uppercase;
     letter-spacing: 0.3px;
     color: var(--text-secondary);
-    white-space: nowrap;  /* Prevent wrapping */
+    white-space: nowrap;
+    font-family: inherit;
   }
 
   .score-bar-track,
@@ -795,6 +797,7 @@ body {
     font-size: 0.875rem;
     font-weight: 600;
     text-align: right;
+    font-family: inherit;
   }
 
   .score-total {
@@ -805,6 +808,7 @@ body {
     padding-top: 12px;
     font-weight: 600;
     border-top: 1px solid var(--divider);
+    font-family: inherit;
   }
 
   /* Skip Link for Accessibility */
