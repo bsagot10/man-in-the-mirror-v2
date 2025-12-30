@@ -188,7 +188,7 @@ export function TqqqSqqqChart({
         fixedrange: false,
       },
       yaxis: {
-        title: { text: 'Price ($)' },
+        title: { text: 'Price ($)', standoff: 15 },
         ...AXIS_CONFIG,
         autorange: true,
         tickformat: '.2f',

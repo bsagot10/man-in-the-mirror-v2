@@ -9,7 +9,7 @@
 
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { useMarketData } from '@/hooks/useMarketData';
 import { VixChart } from '@/components/charts/VixChart';
 import { TqqqSqqqChart } from '@/components/charts/TqqqSqqqChart';
@@ -40,6 +40,81 @@ function determineMarketTrend(qqqChange: number): MarketTrend {
 
 function formatTimestamp(timestamp: string): string {
   return new Date(timestamp).toLocaleString();
+}
+
+// ============================================================================
+// Position Sizing Calculator
+// ============================================================================
+
+interface PositionSizing {
+  allocationPercent: number;
+  allocationAmount: number;
+  tqqqShares: number;
+  sqqqShares: number;
+  totalInvestment: number;
+  marginRequired: number;
+  vixRegimeLabel: string;
+}
+
+function calculatePositionSizing(
+  accountSize: number,
+  vixValue: number,
+  tqqqPrice: number,
+  sqqqPrice: number
+): PositionSizing {
+  // VIX regime allocation - aligned with determineVixRegime() thresholds
+  // Higher VIX = higher allocation (more decay opportunity)
+  let allocationPercent: number;
+  let vixRegimeLabel: string;
+
+  if (vixValue >= 30) {
+    allocationPercent = 0.50;
+    vixRegimeLabel = 'Extreme volatility';
+  } else if (vixValue >= 20) {
+    allocationPercent = 0.40;
+    vixRegimeLabel = 'High volatility';
+  } else if (vixValue >= 15) {
+    allocationPercent = 0.35;
+    vixRegimeLabel = 'Moderate volatility';
+  } else {
+    allocationPercent = 0.30;
+    vixRegimeLabel = 'Low volatility';
+  }
+
+  // Guard against invalid inputs
+  if (accountSize <= 0 || tqqqPrice <= 0 || sqqqPrice <= 0) {
+    return {
+      allocationPercent,
+      allocationAmount: 0,
+      tqqqShares: 0,
+      sqqqShares: 0,
+      totalInvestment: 0,
+      marginRequired: 0,
+      vixRegimeLabel,
+    };
+  }
+
+  const allocationAmount = accountSize * allocationPercent;
+
+  // Target 1.25:1 SQQQ:TQQQ share ratio
+  // Math: If sqqqShares = 1.25 × tqqqShares, then:
+  // tqqqShares × tqqqPrice + 1.25 × tqqqShares × sqqqPrice = allocationAmount
+  // tqqqShares = allocationAmount / (tqqqPrice + 1.25 × sqqqPrice)
+  const TARGET_RATIO = 1.25;
+  const tqqqShares = Math.floor(allocationAmount / (tqqqPrice + TARGET_RATIO * sqqqPrice));
+  const sqqqShares = Math.floor(TARGET_RATIO * tqqqShares);
+  const totalInvestment = (tqqqShares * tqqqPrice) + (sqqqShares * sqqqPrice);
+  const marginRequired = totalInvestment * 0.5; // 50% margin requirement
+
+  return {
+    allocationPercent,
+    allocationAmount,
+    tqqqShares,
+    sqqqShares,
+    totalInvestment,
+    marginRequired,
+    vixRegimeLabel,
+  };
 }
 
 // ============================================================================
@@ -116,6 +191,12 @@ export default function Dashboard() {
   // Stored entry prices for P&L calculation (persisted to localStorage)
   const [storedEntryPrices, setStoredEntryPrices] = useState<{ tqqq: number; sqqq: number } | null>(null);
 
+  // Stored shares for position details (persisted to localStorage)
+  const [storedShares, setStoredShares] = useState<{ tqqq: number; sqqq: number } | null>(null);
+
+  // Committed position sizing - only updates when user clicks "Update"
+  const [committedSizing, setCommittedSizing] = useState<PositionSizing | null>(null);
+
   // Position state - updates when market data changes
   const [positions, setPositions] = useState<Position[]>([]);
 
@@ -175,6 +256,22 @@ export default function Dashboard() {
       if (storedDate) {
         setPositionEntryDate(storedDate);
       }
+
+      // Load stored shares
+      const storedSharesData = localStorage.getItem('positionShares');
+      if (storedSharesData) {
+        const parsed = JSON.parse(storedSharesData);
+        if (parsed.tqqq !== undefined && parsed.sqqq !== undefined) {
+          setStoredShares(parsed);
+        }
+      }
+
+      // Load committed position sizing
+      const storedSizing = localStorage.getItem('committedSizing');
+      if (storedSizing) {
+        const parsed = JSON.parse(storedSizing);
+        setCommittedSizing(parsed);
+      }
     } catch (error) {
       // localStorage may throw in incognito mode or if quota exceeded
       console.warn('Could not access localStorage:', error);
@@ -186,8 +283,8 @@ export default function Dashboard() {
     if (marketData && positionActive) {
       // Use stored entry prices if available, otherwise use current prices
       // For realistic demo: simulate ~5-10% price movement from entry
-      let tqqqEntry = storedEntryPrices?.tqqq ?? marketData.tqqq.currentPrice * 0.95;
-      let sqqqEntry = storedEntryPrices?.sqqq ?? marketData.sqqq.currentPrice * 1.08;
+      const tqqqEntry = storedEntryPrices?.tqqq ?? marketData.tqqq.currentPrice * 0.95;
+      const sqqqEntry = storedEntryPrices?.sqqq ?? marketData.sqqq.currentPrice * 1.08;
 
       // If no stored prices, save them for persistence
       if (!storedEntryPrices) {
@@ -201,17 +298,21 @@ export default function Dashboard() {
         }
       }
 
+      // Use stored shares if available, otherwise default to 5
+      const tqqqShares = storedShares?.tqqq ?? 5;
+      const sqqqShares = storedShares?.sqqq ?? 5;
+
       setPositions([
         {
           symbol: 'TQQQ',
-          shares: 5,
+          shares: tqqqShares,
           entryPrice: tqqqEntry,
           currentPrice: marketData.tqqq.currentPrice,
           entryDate: positionEntryDate,
         },
         {
           symbol: 'SQQQ',
-          shares: 5,
+          shares: sqqqShares,
           entryPrice: sqqqEntry,
           currentPrice: marketData.sqqq.currentPrice,
           entryDate: positionEntryDate,
@@ -220,14 +321,63 @@ export default function Dashboard() {
     } else if (!positionActive) {
       setPositions([]);
     }
-  }, [marketData, positionActive, positionEntryDate, storedEntryPrices]);
+  }, [marketData, positionActive, positionEntryDate, storedEntryPrices, storedShares]);
 
-  // Handler to save accountSize to localStorage
+  // Handler to save accountSize to localStorage and update positions
   const handleUpdateAccountSize = () => {
     try {
       localStorage.setItem('accountSize', String(accountSize));
     } catch (error) {
       console.warn('Could not save to localStorage:', error);
+    }
+
+    // Update positions with positionSizing calculations
+    if (marketData && positionActive) {
+      const newEntryPrices = {
+        tqqq: marketData.tqqq.currentPrice,
+        sqqq: marketData.sqqq.currentPrice,
+      };
+
+      setStoredEntryPrices(newEntryPrices);
+
+      // Store shares from position sizing recommendations
+      const newShares = {
+        tqqq: positionSizing.tqqqShares,
+        sqqq: positionSizing.sqqqShares,
+      };
+      setStoredShares(newShares);
+
+      // Commit the position sizing (so it only updates on button click)
+      setCommittedSizing(positionSizing);
+
+      try {
+        localStorage.setItem('entryPrices', JSON.stringify(newEntryPrices));
+        localStorage.setItem('positionShares', JSON.stringify(newShares));
+        localStorage.setItem('committedSizing', JSON.stringify(positionSizing));
+        localStorage.setItem('positionEntryDate', new Date().toISOString().split('T')[0]);
+      } catch (error) {
+        console.warn('Could not save to localStorage:', error);
+      }
+
+      const today = new Date().toISOString().split('T')[0];
+      setPositionEntryDate(today);
+
+      setPositions([
+        {
+          symbol: 'TQQQ',
+          shares: positionSizing.tqqqShares,
+          entryPrice: marketData.tqqq.currentPrice,
+          currentPrice: marketData.tqqq.currentPrice,
+          entryDate: today,
+        },
+        {
+          symbol: 'SQQQ',
+          shares: positionSizing.sqqqShares,
+          entryPrice: marketData.sqqq.currentPrice,
+          currentPrice: marketData.sqqq.currentPrice,
+          entryDate: today,
+        },
+      ]);
     }
   };
 
@@ -266,6 +416,24 @@ export default function Dashboard() {
   const sqqqPrice = marketData?.sqqq.currentPrice || 69.97;
   const tqqqStop = (tqqqPrice * 1.15).toFixed(2);
   const sqqqStop = (sqqqPrice * 1.15).toFixed(2);
+
+  // Calculate position sizing based on current market conditions
+  const positionSizing = useMemo(() => {
+    return calculatePositionSizing(accountSize, vixValue, tqqqPrice, sqqqPrice);
+  }, [accountSize, vixValue, tqqqPrice, sqqqPrice]);
+
+  // Initialize committedSizing from positionSizing if not already set
+  // This ensures Position Sizing Recommendations shows stable values on first load
+  useEffect(() => {
+    if (committedSizing === null && marketData && positionSizing.tqqqShares > 0) {
+      setCommittedSizing(positionSizing);
+      try {
+        localStorage.setItem('committedSizing', JSON.stringify(positionSizing));
+      } catch (error) {
+        console.warn('Could not save to localStorage:', error);
+      }
+    }
+  }, [committedSizing, marketData, positionSizing]);
 
   // Handle error state
   if (error && !marketData) {
@@ -595,10 +763,10 @@ export default function Dashboard() {
               <table className="position-table" aria-label="Current positions">
                 <thead>
                   <tr>
-                    <th scope="col">Symbol</th>
-                    <th scope="col">Shares</th>
+                    <th scope="col">Sym</th>
+                    <th scope="col">Shr</th>
                     <th scope="col">Entry</th>
-                    <th scope="col">Current</th>
+                    <th scope="col">Curr</th>
                     <th scope="col">P&L</th>
                   </tr>
                 </thead>
@@ -631,11 +799,13 @@ export default function Dashboard() {
               <div className="allocation-info">
                 <div className="info-row">
                   <label>Initial Allocation:</label>
-                  <span>$457.25</span>
+                  <span>${(committedSizing ?? positionSizing).allocationAmount.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
                 </div>
                 <div className="info-row">
                   <label>Ratio (SQQQ:TQQQ):</label>
-                  <span>1.23:1</span>
+                  <span>{(committedSizing ?? positionSizing).tqqqShares > 0
+                    ? `${((committedSizing ?? positionSizing).sqqqShares / (committedSizing ?? positionSizing).tqqqShares).toFixed(2)}:1`
+                    : '—'}</span>
                 </div>
                 <div className="info-row">
                   <label>Recommended Ratio:</label>
@@ -654,7 +824,7 @@ export default function Dashboard() {
             loading={loading && !entryScore}
           />
 
-          {/* Position Sizing Recommendations */}
+          {/* Position Sizing Recommendations - uses committed sizing (only updates on Update click) */}
           <div className="ghibli-card">
             <div className="card-header">
               <h2>📊 POSITION SIZING RECOMMENDATIONS</h2>
@@ -663,12 +833,12 @@ export default function Dashboard() {
               <div className="recommendations">
                 <p>Based on current market conditions:</p>
                 <ul>
-                  <li>VIX: <strong>{vixValue.toFixed(1)}</strong> (Low volatility)</li>
-                  <li>Allocation: <strong>30%</strong> of account</li>
-                  <li>TQQQ: Short <strong>10</strong> shares @ ${tqqqPrice.toFixed(2)}</li>
-                  <li>SQQQ: Short <strong>8</strong> shares @ ${sqqqPrice.toFixed(2)}</li>
-                  <li>Total Investment: $878.81</li>
-                  <li>Margin Required: $439.40</li>
+                  <li>VIX: <strong>{vixValue.toFixed(1)}</strong> ({(committedSizing ?? positionSizing).vixRegimeLabel})</li>
+                  <li>Allocation: <strong>{((committedSizing ?? positionSizing).allocationPercent * 100).toFixed(0)}%</strong> of account</li>
+                  <li>TQQQ: Short <strong>{(committedSizing ?? positionSizing).tqqqShares}</strong> shares @ ${tqqqPrice.toFixed(2)}</li>
+                  <li>SQQQ: Short <strong>{(committedSizing ?? positionSizing).sqqqShares}</strong> shares @ ${sqqqPrice.toFixed(2)}</li>
+                  <li>Total Investment: <strong>${(committedSizing ?? positionSizing).totalInvestment.toFixed(2)}</strong></li>
+                  <li>Margin Required: <strong>${(committedSizing ?? positionSizing).marginRequired.toFixed(2)}</strong></li>
                 </ul>
               </div>
             </div>

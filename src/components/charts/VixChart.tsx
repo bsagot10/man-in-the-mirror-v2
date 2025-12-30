@@ -178,7 +178,7 @@ export function VixChart({
         fixedrange: false,
       },
       yaxis: {
-        title: { text: 'VIX Value' },
+        title: { text: 'VIX Value', standoff: 15 },
         ...AXIS_CONFIG,
         autorange: true,
         tickformat: '.1f',

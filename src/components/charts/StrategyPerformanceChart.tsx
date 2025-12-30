@@ -24,7 +24,7 @@ import {
   LEGEND_CONFIG,
   PLOT_CONFIG,
 } from '@/lib/chart-config';
-import { processChartData } from '@/lib/data-processing/removeFlatSegments';
+// processChartData intentionally not used - raw values needed for P&L precision
 
 // Dynamic import for Plotly to avoid SSR issues
 const Plot = dynamic(() => import('react-plotly.js'), {
@@ -109,18 +109,19 @@ export function StrategyPerformanceChart({
     const resultDates: string[] = [];
     const rawPnlValues: number[] = [];
 
-    // Use the shorter array length to ensure alignment
-    const minLength = Math.min(validTqqq.length, validSqqq.length);
+    // Create SQQQ lookup map for O(1) date matching
+    const sqqqMap = new Map<string, number>(
+      validSqqq.map((d) => [d.date, d.close])
+    );
 
-    for (let i = 0; i < minLength; i++) {
-      const tqqq = validTqqq[i];
-      const sqqq = validSqqq[i];
+    // Iterate through TQQQ dates and find matching SQQQ data
+    for (const tqqq of validTqqq) {
+      const sqqqClose = sqqqMap.get(tqqq.date);
 
-      // Only include if dates match (aligned data)
-      if (tqqq.date === sqqq.date) {
-        // Calculate returns from initial price
+      // Only add data point if SQQQ has data for this date
+      if (sqqqClose !== undefined) {
         const tqqqReturn = (tqqq.close - initialTqqq) / initialTqqq;
-        const sqqqReturn = (sqqq.close - initialSqqq) / initialSqqq;
+        const sqqqReturn = (sqqqClose - initialSqqq) / initialSqqq;
 
         // Short positions profit from price drops
         // Weighted equally between TQQQ and SQQQ
@@ -134,15 +135,7 @@ export function StrategyPerformanceChart({
       }
     }
 
-    // Process values to remove flat segments for smooth splines
-    const processedValues = processChartData(rawPnlValues);
-
-    // If lengths differ after processing, return original
-    if (processedValues.length !== resultDates.length) {
-      return { dates: resultDates, pnlValues: rawPnlValues };
-    }
-
-    return { dates: resultDates, pnlValues: processedValues };
+    return { dates: resultDates, pnlValues: rawPnlValues };
   }, [tqqqData, sqqqData]);
 
   // Create trace configuration
@@ -288,9 +281,11 @@ export function StrategyPerformanceChart({
         tickmode: 'auto' as const,
         nticks: 5,
         fixedrange: false,
+        range: dates.length > 0 ? [dates[0], dates[dates.length - 1]] : undefined,
+        autorange: dates.length === 0,
       },
       yaxis: {
-        title: { text: 'P&L %' },
+        title: { text: 'P&L %', standoff: 15 },
         ...AXIS_CONFIG,
         autorange: true,
         tickformat: '.2f',
@@ -299,7 +294,7 @@ export function StrategyPerformanceChart({
       shapes,
       annotations,
     };
-  }, [title, height, shapes, annotations]);
+  }, [title, height, shapes, annotations, dates]);
 
   // Plot configuration
   const config: Partial<Config> = {
