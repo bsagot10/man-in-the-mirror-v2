@@ -105,7 +105,7 @@ man-in-the-mirror-next/
 - Mock external dependencies (fetch, next/dynamic)
 
 **Styling:**
-- Custom classes: `ghibli-card`, `card-header`, `card-content`, `metric-box`
+- Custom classes: `ghibli-card`, `card-header`, `card-content`, `metric-box`, `right-column`, `left-column`, `center-column`
 - Tailwind utilities for layout and responsive design
 - Color system: green (bullish/positive), red (bearish/negative), yellow (warning)
 - Theme: Studio Ghibli-inspired warm palette (Noto Sans font, warm cream/beige/amber colors)
@@ -114,6 +114,7 @@ man-in-the-mirror-next/
 - Responsive: Reduce padding/font sizes on narrow viewports, use `flex-wrap` on headers
 - Card headers: 12px/16px padding, 0.8rem font size, with gap for wrapping
 - Table headers: Abbreviated for mobile UX (Sym, Shr, Entry, Curr, P&L)
+- Shadow constraints: Right column cards use reduced shadow (`0 4px 12px rgba(139, 111, 71, 0.08)`) to prevent blur bleeding into 16px gaps
 - Accessibility: Include `aria-label` on metric boxes, skip-to-content link in layout
 
 **Error Handling:**

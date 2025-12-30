@@ -133,6 +133,16 @@ body {
 
   .right-column .ghibli-card {
     overflow: visible;  /* Don't clip card content */
+    position: relative;
+    z-index: 1;  /* Ensure cards stack properly to prevent shadow overlap */
+    box-shadow:
+      0 4px 12px rgba(139, 111, 71, 0.08),
+      0 1px 0 rgba(255, 255, 255, 0.8) inset;  /* Reduced blur to prevent gap bleed */
+  }
+
+  /* Ensure each subsequent card covers the shadow of the one above */
+  .right-column .ghibli-card + .ghibli-card {
+    z-index: 2;
   }
 
   .center-column {
