@@ -132,12 +132,17 @@ body {
   }
 
   .right-column .ghibli-card {
-    overflow: visible;  /* Don't clip card content */
+    overflow: hidden;  /* Clip to rounded corners for clean appearance */
     position: relative;
     z-index: 1;  /* Ensure cards stack properly to prevent shadow overlap */
     box-shadow:
       0 4px 12px rgba(139, 111, 71, 0.08),
       0 1px 0 rgba(255, 255, 255, 0.8) inset;  /* Reduced blur to prevent gap bleed */
+  }
+
+  /* Ensure right column card headers have matching rounded corners */
+  .right-column .ghibli-card .card-header {
+    border-radius: 12px 12px 0 0;  /* Match parent card border-radius */
   }
 
   /* Ensure each subsequent card covers the shadow of the one above */

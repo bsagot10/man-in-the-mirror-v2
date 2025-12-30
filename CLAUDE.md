@@ -110,7 +110,8 @@ man-in-the-mirror-next/
 - Color system: green (bullish/positive), red (bearish/negative), yellow (warning)
 - Theme: Studio Ghibli-inspired warm palette (Noto Sans font, warm cream/beige/amber colors)
 - Header background: `rgba(254, 246, 228, 0.85)` for warm cream consistency
-- Overflow handling: Use `overflow-x: hidden` on containers, `overflow: visible` on cards
+- Overflow handling: Use `overflow-x: hidden` on containers, `overflow: hidden` on right-column cards (clips content to rounded corners)
+- Card header border-radius: Right-column cards require explicit `border-radius: 12px 12px 0 0` on `.card-header` to match parent card corners
 - Responsive: Reduce padding/font sizes on narrow viewports, use `flex-wrap` on headers
 - Card headers: 12px/16px padding, 0.8rem font size, with gap for wrapping
 - Table headers: Abbreviated for mobile UX (Sym, Shr, Entry, Curr, P&L)
