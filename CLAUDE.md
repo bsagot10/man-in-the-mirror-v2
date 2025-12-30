@@ -119,9 +119,9 @@ man-in-the-mirror-next/
 - Right-column card stacking: Incremental z-index (`z-index: 2` for subsequent cards) ensures shadows don't overlap
 - Right-column card headers: Explicit `border-radius: 12px 12px 0 0` to match parent card corners and prevent dark corners
 - Card headers: 12px/16px padding, 0.8rem font size, gradient background, flex layout with justify-between
-- Score details: 12px padding (reduced from 16px), transparent background (was rgba(255,255,255,0.3)), 10px gap between items, font-family: inherit
-- Score items: Grid layout with 110px label, flexible bar, 24px value (optimized for longer bars), font-family: inherit on label/value
-- Position table: 8px/6px padding, 0.7rem header font size, specific column widths with min-widths (Symbol: 17%/48px, Shares: 14%/42px, Entry: 22%/58px, Current: 22%/58px, P&L: 25%/62px), center-aligned columns (Sym, Shr, Entry, P&L), left-aligned Current column
+- Score details: 12px padding (reduced from 16px), transparent background (was rgba(255,255,255,0.3)), 6px gap between items (tighter spacing for bars closer to numbers), font-family: inherit
+- Score items: Grid layout with 115px label, flexible bar, 20px value (wider label, narrower score column), font-family: inherit on label/value, 0.8rem label font size (matches recommendations text)
+- Position table: 8px/6px padding, 0.7rem header font size, specific column widths with min-widths (Symbol: 17%/48px, Shares: 14%/42px, Entry: 22%/58px, Current: 22%/58px, P&L: 25%/62px), all columns center-aligned, transparent alternating row background (was rgba(255,255,255,0.3))
 - Responsive: Reduce padding/font sizes on narrow viewports, use `flex-wrap` on headers with gap for wrapping
 - Table headers: Abbreviated for mobile UX (Sym, Shr, Entry, Curr, P&L)
 - Accessibility: Include `aria-label` on metric boxes, skip-to-content link in layout

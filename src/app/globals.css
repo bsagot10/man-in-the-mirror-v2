@@ -487,7 +487,7 @@ body {
   .position-table th:nth-child(3),
   .position-table td:nth-child(3) { width: 22%; min-width: 58px; text-align: center; }  /* Entry */
   .position-table th:nth-child(4),
-  .position-table td:nth-child(4) { width: 22%; min-width: 58px; }  /* Current - left aligned */
+  .position-table td:nth-child(4) { width: 22%; min-width: 58px; text-align: center; }  /* Current */
   .position-table th:nth-child(5),
   .position-table td:nth-child(5) { width: 25%; min-width: 62px; text-align: center; }  /* P&L */
 
