@@ -481,15 +481,15 @@ body {
 
   /* Specific column widths for position table */
   .position-table th:nth-child(1),
-  .position-table td:nth-child(1) { width: 17%; min-width: 48px; }  /* Symbol */
+  .position-table td:nth-child(1) { width: 17%; min-width: 48px; text-align: center; }  /* Symbol */
   .position-table th:nth-child(2),
-  .position-table td:nth-child(2) { width: 14%; min-width: 42px; }  /* Shares */
+  .position-table td:nth-child(2) { width: 14%; min-width: 42px; text-align: center; }  /* Shares */
   .position-table th:nth-child(3),
-  .position-table td:nth-child(3) { width: 22%; min-width: 58px; }  /* Entry */
+  .position-table td:nth-child(3) { width: 22%; min-width: 58px; text-align: center; }  /* Entry */
   .position-table th:nth-child(4),
-  .position-table td:nth-child(4) { width: 22%; min-width: 58px; }  /* Current */
+  .position-table td:nth-child(4) { width: 22%; min-width: 58px; }  /* Current - left aligned */
   .position-table th:nth-child(5),
-  .position-table td:nth-child(5) { width: 25%; min-width: 62px; }  /* P&L */
+  .position-table td:nth-child(5) { width: 25%; min-width: 62px; text-align: center; }  /* P&L */
 
   .position-table td.positive {
     color: var(--positive);
