@@ -8,17 +8,14 @@
  */
 
 import { NextRequest, NextResponse } from 'next/server';
-import { MarketDataClient } from '@/lib/market-data/client';
+import { marketDataClient } from '@/lib/market-data/client';
 import { calculateEntryScore } from '@/lib/market-analysis/entryScore';
-
-// Create client instance
-const client = new MarketDataClient();
 
 // eslint-disable-next-line @typescript-eslint/no-unused-vars
 export async function GET(_request: NextRequest) {
   try {
     // Fetch current market data
-    const marketData = await client.fetchCurrentData();
+    const marketData = await marketDataClient.fetchCurrentData();
 
     // Transform to entry score format
     const entryScoreInput = {

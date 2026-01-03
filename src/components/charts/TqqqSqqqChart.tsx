@@ -69,6 +69,9 @@ export function TqqqSqqqChart({
   loading = false,
   error,
 }: TqqqSqqqChartProps) {
+  // IMPORTANT: All hooks must be called unconditionally before any early returns
+  // to satisfy React's Rules of Hooks
+
   // Process TQQQ data
   const { dates: tqqqDates, values: tqqqValues } = useMemo(() => {
     if (!tqqqData || tqqqData.length === 0) {
@@ -113,6 +116,8 @@ export function TqqqSqqqChart({
 
   // Create trace configurations
   const traces: Data[] = useMemo(() => {
+    // Return empty traces if no data
+    if (tqqqDates.length === 0 && sqqqDates.length === 0) return [];
     return [
       {
         type: 'scatter' as const,
@@ -196,10 +201,12 @@ export function TqqqSqqqChart({
     };
   }, [title, height]);
 
-  // Plot configuration
+  // Plot configuration (not a hook, but kept with other config)
   const config: Partial<Config> = {
     ...PLOT_CONFIG,
   };
+
+  // === Early returns after all hooks ===
 
   // Loading state
   if (loading) {
@@ -215,6 +222,26 @@ export function TqqqSqqqChart({
     return (
       <div className={`h-[${height}px] flex items-center justify-center ${className}`}>
         <div className="text-red-500">{error}</div>
+      </div>
+    );
+  }
+
+  // Empty state - show message when no data
+  if ((!tqqqData || tqqqData.length === 0) && (!sqqqData || sqqqData.length === 0)) {
+    return (
+      <div className={className} data-testid="tqqq-sqqq-chart" style={{ width: '100%', height: height }}>
+        <div className="ghibli-card" style={{ height: '100%' }}>
+          <div className="card-header">TQQQ/SQQQ Prices</div>
+          <div className="card-content" style={{
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            height: 'calc(100% - 40px)',
+            color: 'var(--text-secondary)'
+          }}>
+            No data available
+          </div>
+        </div>
       </div>
     );
   }

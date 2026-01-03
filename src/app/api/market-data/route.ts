@@ -8,19 +8,16 @@
  */
 
 import { NextRequest, NextResponse } from 'next/server';
-import { MarketDataClient } from '@/lib/market-data/client';
-
-// Create client instance
-const client = new MarketDataClient();
+import { marketDataClient } from '@/lib/market-data/client';
 
 // eslint-disable-next-line @typescript-eslint/no-unused-vars
 export async function GET(_request: NextRequest) {
   try {
     // Fetch current market data
-    const marketData = await client.fetchCurrentData();
+    const marketData = await marketDataClient.fetchCurrentData();
 
     // Check if market is open
-    const marketOpen = client.isMarketOpen();
+    const marketOpen = marketDataClient.isMarketOpen();
 
     // Build response
     const response = {

@@ -222,4 +222,66 @@ describe('MarketMetrics Component', () => {
       expect(screen.getByLabelText(/market trend/i)).toBeInTheDocument();
     });
   });
+
+  describe('Stale Data Indicator', () => {
+    it('shows stale data warning when isStale is true', () => {
+      render(
+        <MarketMetrics
+          entryScore={75}
+          signal="ENTER"
+          vixValue={20.5}
+          isStale={true}
+          cacheAge={6 * 60 * 1000} // 6 minutes
+        />
+      );
+      expect(screen.getByTestId('stale-data-indicator')).toBeInTheDocument();
+    });
+
+    it('does not show stale warning when isStale is false', () => {
+      render(
+        <MarketMetrics
+          entryScore={75}
+          signal="ENTER"
+          vixValue={20.5}
+          isStale={false}
+          cacheAge={2 * 60 * 1000} // 2 minutes
+        />
+      );
+      expect(screen.queryByTestId('stale-data-indicator')).not.toBeInTheDocument();
+    });
+
+    it('does not show stale warning when isStale is undefined', () => {
+      render(
+        <MarketMetrics
+          entryScore={75}
+          signal="ENTER"
+          vixValue={20.5}
+        />
+      );
+      expect(screen.queryByTestId('stale-data-indicator')).not.toBeInTheDocument();
+    });
+
+    it('displays cache age in minutes', () => {
+      render(
+        <MarketMetrics
+          entryScore={75}
+          isStale={true}
+          cacheAge={7 * 60 * 1000} // 7 minutes
+        />
+      );
+      expect(screen.getByTestId('stale-data-indicator')).toHaveTextContent('7m');
+    });
+
+    it('applies warning color to stale indicator', () => {
+      render(
+        <MarketMetrics
+          entryScore={75}
+          isStale={true}
+          cacheAge={6 * 60 * 1000}
+        />
+      );
+      const indicator = screen.getByTestId('stale-data-indicator');
+      expect(indicator).toHaveClass('text-yellow-500');
+    });
+  });
 });

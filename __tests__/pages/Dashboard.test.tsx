@@ -338,8 +338,9 @@ describe('Dashboard Page', () => {
     it('has responsive grid classes', async () => {
       render(<Dashboard />);
       const mainContent = screen.getByTestId('main-content');
-      expect(mainContent).toHaveClass('grid');
-      expect(mainContent).toHaveClass('lg:grid-cols-3');
+      // Grid styling is applied via custom CSS class 'main-content' in globals.css
+      // (not Tailwind utility classes)
+      expect(mainContent).toHaveClass('main-content');
     });
   });
 

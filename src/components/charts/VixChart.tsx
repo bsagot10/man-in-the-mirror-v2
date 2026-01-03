@@ -70,6 +70,9 @@ export function VixChart({
   loading = false,
   error,
 }: VixChartProps) {
+  // IMPORTANT: All hooks must be called unconditionally before any early returns
+  // to satisfy React's Rules of Hooks
+
   // Process data to remove flat segments for smooth splines
   const { dates, values } = useMemo(() => {
     if (!data || data.length === 0) {
@@ -98,6 +101,7 @@ export function VixChart({
 
   // Create trace configuration
   const traces: Data[] = useMemo(() => {
+    if (dates.length === 0) return [];
     return [
       {
         type: 'scatter' as const,
@@ -187,10 +191,12 @@ export function VixChart({
     };
   }, [title, height, shapes]);
 
-  // Plot configuration
+  // Plot configuration (not a hook, but kept with other config)
   const config: Partial<Config> = {
     ...PLOT_CONFIG,
   };
+
+  // === Early returns after all hooks ===
 
   // Loading state
   if (loading) {
@@ -206,6 +212,26 @@ export function VixChart({
     return (
       <div className={`h-[${height}px] flex items-center justify-center ${className}`}>
         <div className="text-red-500">{error}</div>
+      </div>
+    );
+  }
+
+  // Empty state - show message when no data
+  if (!data || data.length === 0) {
+    return (
+      <div className={className} data-testid="vix-chart" style={{ width: '100%', height: height }}>
+        <div className="ghibli-card" style={{ height: '100%' }}>
+          <div className="card-header">VIX Index</div>
+          <div className="card-content" style={{
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            height: 'calc(100% - 40px)',
+            color: 'var(--text-secondary)'
+          }}>
+            No data available
+          </div>
+        </div>
       </div>
     );
   }

@@ -462,6 +462,11 @@ export default function Dashboard() {
 
   return (
     <div data-testid="dashboard" className="min-h-screen bg-warm-gradient">
+      {/* Skip Link for Keyboard Navigation */}
+      <a href="#main-content" className="skip-link">
+        Skip to main content
+      </a>
+
       {/* Live Region for Screen Reader Announcements */}
       <div
         aria-live="polite"

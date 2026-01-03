@@ -77,9 +77,9 @@ describe('TqqqSqqqChart', () => {
       expect(screen.getByTestId('plotly-chart')).toBeInTheDocument();
     });
 
-    it('renders with empty data', () => {
+    it('shows "No data available" when both data arrays are empty', () => {
       render(<TqqqSqqqChart tqqqData={[]} sqqqData={[]} />);
-      expect(screen.getByTestId('plotly-chart')).toBeInTheDocument();
+      expect(screen.getByText(/no data available/i)).toBeInTheDocument();
     });
 
     it('renders with only TQQQ data', () => {

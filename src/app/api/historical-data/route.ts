@@ -8,10 +8,7 @@
  */
 
 import { NextRequest, NextResponse } from 'next/server';
-import { MarketDataClient } from '@/lib/market-data/client';
-
-// Create client instance
-const client = new MarketDataClient();
+import { marketDataClient } from '@/lib/market-data/client';
 
 export async function GET(request: NextRequest) {
   try {
@@ -29,7 +26,7 @@ export async function GET(request: NextRequest) {
     }
 
     // Fetch historical data
-    const historicalData = await client.fetchHistoricalData(days);
+    const historicalData = await marketDataClient.fetchHistoricalData(days);
 
     // Build response
     const response = {

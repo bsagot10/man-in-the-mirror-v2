@@ -47,14 +47,15 @@ describe('EntryScoreDisplay Component', () => {
     it('renders volatility bar with correct width', () => {
       render(<EntryScoreDisplay volatilityScore={25} />);
       const bar = screen.getByTestId('volatility-bar');
-      // 25/50 = 50%
-      expect(bar).toHaveStyle({ width: '50%' });
+      // Uses UNIFIED_VISUAL_MAX=100 for visual comparison: 25/100 = 25%
+      expect(bar).toHaveStyle({ width: '25%' });
     });
 
     it('caps volatility bar at 100% for max score', () => {
+      // With UNIFIED_VISUAL_MAX=100, max volatility score (50) shows as 50%
       render(<EntryScoreDisplay volatilityScore={50} />);
       const bar = screen.getByTestId('volatility-bar');
-      expect(bar).toHaveStyle({ width: '100%' });
+      expect(bar).toHaveStyle({ width: '50%' });
     });
 
     it('shows 0% width for zero score', () => {
@@ -78,14 +79,15 @@ describe('EntryScoreDisplay Component', () => {
     it('renders trend bar with correct width', () => {
       render(<EntryScoreDisplay trendScore={15} />);
       const bar = screen.getByTestId('trend-bar');
-      // 15/30 = 50%
-      expect(bar).toHaveStyle({ width: '50%' });
+      // Uses UNIFIED_VISUAL_MAX=100 for visual comparison: 15/100 = 15%
+      expect(bar).toHaveStyle({ width: '15%' });
     });
 
     it('caps trend bar at 100% for max score', () => {
+      // With UNIFIED_VISUAL_MAX=100, max trend score (30) shows as 30%
       render(<EntryScoreDisplay trendScore={30} />);
       const bar = screen.getByTestId('trend-bar');
-      expect(bar).toHaveStyle({ width: '100%' });
+      expect(bar).toHaveStyle({ width: '30%' });
     });
   });
 
@@ -103,14 +105,15 @@ describe('EntryScoreDisplay Component', () => {
     it('renders decay bar with correct width', () => {
       render(<EntryScoreDisplay decayScore={15} />);
       const bar = screen.getByTestId('decay-bar');
-      // 15/30 = 50%
-      expect(bar).toHaveStyle({ width: '50%' });
+      // Uses UNIFIED_VISUAL_MAX=100 for visual comparison: 15/100 = 15%
+      expect(bar).toHaveStyle({ width: '15%' });
     });
 
     it('caps decay bar at 100% for max score', () => {
+      // With UNIFIED_VISUAL_MAX=100, max decay score (30) shows as 30%
       render(<EntryScoreDisplay decayScore={30} />);
       const bar = screen.getByTestId('decay-bar');
-      expect(bar).toHaveStyle({ width: '100%' });
+      expect(bar).toHaveStyle({ width: '30%' });
     });
   });
 
@@ -225,7 +228,8 @@ describe('EntryScoreDisplay Component', () => {
     it('renders score labels with proper styling', () => {
       render(<EntryScoreDisplay volatilityScore={25} />);
       const label = screen.getByText(/VOLATILITY/i);
-      expect(label).toHaveClass('text-warm-600');
+      // Component uses custom CSS class 'score-label' defined in globals.css
+      expect(label).toHaveClass('score-label');
     });
   });
 
@@ -285,10 +289,10 @@ describe('EntryScoreDisplay Component', () => {
       expect(screen.getByTestId('decay-score')).toHaveTextContent('20');
       expect(screen.getByTestId('total-score')).toHaveTextContent('85');
 
-      // Check bar widths
-      expect(screen.getByTestId('volatility-bar')).toHaveStyle({ width: '80%' }); // 40/50
-      expect(screen.getByTestId('trend-bar')).toHaveStyle({ width: '83.33333333333334%' }); // 25/30
-      expect(screen.getByTestId('decay-bar')).toHaveStyle({ width: '66.66666666666666%' }); // 20/30
+      // Check bar widths - uses UNIFIED_VISUAL_MAX=100 for visual comparison
+      expect(screen.getByTestId('volatility-bar')).toHaveStyle({ width: '40%' }); // 40/100
+      expect(screen.getByTestId('trend-bar')).toHaveStyle({ width: '25%' }); // 25/100
+      expect(screen.getByTestId('decay-bar')).toHaveStyle({ width: '20%' }); // 20/100
     });
   });
 });

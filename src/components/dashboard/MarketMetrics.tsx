@@ -27,6 +27,10 @@ export interface MarketMetricsProps {
   marketTrend?: MarketTrend;
   loading?: boolean;
   error?: string;
+  /** True if market data is stale (older than cache TTL) */
+  isStale?: boolean;
+  /** Age of cached data in milliseconds */
+  cacheAge?: number;
 }
 
 // ============================================================================
@@ -112,6 +116,8 @@ export function MarketMetrics({
   marketTrend,
   loading = false,
   error,
+  isStale,
+  cacheAge,
 }: MarketMetricsProps) {
   if (error) {
     return (
@@ -132,6 +138,14 @@ export function MarketMetrics({
     <div data-testid="market-metrics" className="ghibli-card">
       <div className="card-header">
         <h2 className="text-lg font-semibold text-warm-800">📈 MARKET CONDITIONS</h2>
+        {isStale && cacheAge !== undefined && (
+          <div
+            data-testid="stale-data-indicator"
+            className="text-yellow-500 text-xs font-medium"
+          >
+            ⚠️ Using cached data ({Math.floor(cacheAge / 60000)}m old)
+          </div>
+        )}
       </div>
       <div className={`card-content ${loading ? 'animate-pulse' : ''}`}>
         <div className="grid grid-cols-1 gap-4">

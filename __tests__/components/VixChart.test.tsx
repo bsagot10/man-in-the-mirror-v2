@@ -66,9 +66,9 @@ describe('VixChart', () => {
       expect(screen.getByTestId('plotly-chart')).toBeInTheDocument();
     });
 
-    it('renders with empty data', () => {
+    it('shows "No data available" when data array is empty', () => {
       render(<VixChart data={[]} />);
-      expect(screen.getByTestId('plotly-chart')).toBeInTheDocument();
+      expect(screen.getByText(/no data available/i)).toBeInTheDocument();
     });
 
     it('renders with single data point', () => {

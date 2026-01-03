@@ -10,58 +10,65 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { NextRequest } from 'next/server';
 
-// Mock data
-const mockCurrentData = {
-  vix: { currentPrice: 20.5, changePercent: 1.5, previousClose: 20.2, change: 0.3, volume: 0, timestamp: '2024-01-15T16:00:00Z' },
-  qqq: { currentPrice: 400, changePercent: 0.5, previousClose: 398, change: 2, volume: 50000000, timestamp: '2024-01-15T16:00:00Z' },
-  tqqq: { currentPrice: 50, changePercent: 1.5, previousClose: 49.25, change: 0.75, volume: 30000000, timestamp: '2024-01-15T16:00:00Z' },
-  sqqq: { currentPrice: 30, changePercent: -1.5, previousClose: 30.45, change: -0.45, volume: 20000000, timestamp: '2024-01-15T16:00:00Z' },
-};
-
-const mockHistoricalData = {
-  vix: [
-    { date: '2024-01-15', open: 20, high: 21, low: 19.5, close: 20.5, volume: 0 },
-    { date: '2024-01-16', open: 20.5, high: 22, low: 20, close: 21.0, volume: 0 },
-  ],
-  tqqq: [
-    { date: '2024-01-15', open: 49, high: 51, low: 48, close: 50, volume: 30000000 },
-    { date: '2024-01-16', open: 50, high: 52, low: 49, close: 51.5, volume: 32000000 },
-  ],
-  sqqq: [
-    { date: '2024-01-15', open: 31, high: 32, low: 29.5, close: 30, volume: 20000000 },
-    { date: '2024-01-16', open: 30, high: 31, low: 28.5, close: 28.5, volume: 22000000 },
-  ],
-};
-
-// Mock the market data client as a class
+// Mock the market data client - both class and singleton
+// Note: vi.mock is hoisted, so we must inline all mock data
 vi.mock('@/lib/market-data/client', () => {
+  // Mock data must be defined inside the factory (hoisting issue)
+  const mockCurrentData = {
+    vix: { currentPrice: 20.5, changePercent: 1.5, previousClose: 20.2, change: 0.3, volume: 0, timestamp: '2024-01-15T16:00:00Z' },
+    qqq: { currentPrice: 400, changePercent: 0.5, previousClose: 398, change: 2, volume: 50000000, timestamp: '2024-01-15T16:00:00Z' },
+    tqqq: { currentPrice: 50, changePercent: 1.5, previousClose: 49.25, change: 0.75, volume: 30000000, timestamp: '2024-01-15T16:00:00Z' },
+    sqqq: { currentPrice: 30, changePercent: -1.5, previousClose: 30.45, change: -0.45, volume: 20000000, timestamp: '2024-01-15T16:00:00Z' },
+  };
+
+  const mockHistoricalData = {
+    vix: [
+      { date: '2024-01-15', open: 20, high: 21, low: 19.5, close: 20.5, volume: 0 },
+      { date: '2024-01-16', open: 20.5, high: 22, low: 20, close: 21.0, volume: 0 },
+    ],
+    tqqq: [
+      { date: '2024-01-15', open: 49, high: 51, low: 48, close: 50, volume: 30000000 },
+      { date: '2024-01-16', open: 50, high: 52, low: 49, close: 51.5, volume: 32000000 },
+    ],
+    sqqq: [
+      { date: '2024-01-15', open: 31, high: 32, low: 29.5, close: 30, volume: 20000000 },
+      { date: '2024-01-16', open: 30, high: 31, low: 28.5, close: 28.5, volume: 22000000 },
+    ],
+  };
+
+  const mockClient = {
+    fetchCurrentData: vi.fn().mockResolvedValue(mockCurrentData),
+    fetchHistoricalData: vi.fn().mockResolvedValue(mockHistoricalData),
+    getVixData: vi.fn().mockResolvedValue({
+      current: 20.5,
+      average30d: 19.8,
+      regime: 'High',
+      allocationPercentage: 0.4,
+      history: [19.5, 20.0, 20.5],
+    }),
+    isMarketOpen: vi.fn().mockReturnValue(true),
+    getMetrics: vi.fn().mockReturnValue({
+      cacheHits: 10,
+      cacheMisses: 2,
+      stooqSuccess: 8,
+      stooqFailed: 0,
+      yahooSuccess: 2,
+      yahooFailed: 0,
+      cacheHitRate: 83.3,
+    }),
+    clearCache: vi.fn(),
+  };
+
   return {
     MarketDataClient: class MockMarketDataClient {
-      async fetchCurrentData() {
-        return mockCurrentData;
-      }
-      async fetchHistoricalData() {
-        return mockHistoricalData;
-      }
-      async getVixData() {
-        return {
-          current: 20.5,
-          average30d: 19.8,
-          regime: 'High',
-          allocationPercentage: 0.4,
-          history: [19.5, 20.0, 20.5],
-        };
-      }
-      isMarketOpen() {
-        return true;
-      }
+      fetchCurrentData = mockClient.fetchCurrentData;
+      fetchHistoricalData = mockClient.fetchHistoricalData;
+      getVixData = mockClient.getVixData;
+      isMarketOpen = mockClient.isMarketOpen;
+      getMetrics = mockClient.getMetrics;
+      clearCache = mockClient.clearCache;
     },
-    marketDataClient: {
-      fetchCurrentData: vi.fn(),
-      fetchHistoricalData: vi.fn(),
-      getVixData: vi.fn(),
-      isMarketOpen: vi.fn(),
-    },
+    marketDataClient: mockClient,
   };
 });
 

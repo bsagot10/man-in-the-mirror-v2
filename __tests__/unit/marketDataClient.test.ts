@@ -15,6 +15,10 @@ import {
   calculateChangePercent,
   formatSymbolData,
   validateHistoricalData,
+  DataSourceError,
+  classifyError,
+  LogLevel,
+  structuredLog,
 } from '@/lib/market-data/client';
 
 // Mock yahoo-finance2 as a class constructor
@@ -414,6 +418,123 @@ describe('MarketDataClient', () => {
   });
 });
 
+describe('Caching behavior', () => {
+  let client: MarketDataClient;
+
+  beforeEach(async () => {
+    const yahooFinanceMock = await import('yahoo-finance2') as unknown as {
+      __mockQuote: ReturnType<typeof vi.fn>;
+      __mockHistorical: ReturnType<typeof vi.fn>;
+    };
+    mockQuote = yahooFinanceMock.__mockQuote;
+    mockHistorical = yahooFinanceMock.__mockHistorical;
+
+    client = new MarketDataClient();
+    client.clearCache();
+    vi.clearAllMocks();
+  });
+
+  it('cache TTL is at least 5 minutes for current data to reduce rate limiting', async () => {
+    expect(client['CACHE_TTL']).toBeGreaterThanOrEqual(5 * 60 * 1000);
+  });
+
+  it('historical cache TTL is at least 15 minutes', async () => {
+    expect(client['HISTORICAL_CACHE_TTL']).toBeGreaterThanOrEqual(15 * 60 * 1000);
+  });
+
+  it('caches historical data to reduce API calls', async () => {
+    mockHistorical.mockResolvedValue([
+      { date: new Date('2024-01-15'), open: 50, high: 51, low: 49, close: 50.5, volume: 1000000 },
+    ]);
+
+    // First call - should hit API
+    await client.fetchHistoricalData();
+    const firstCallCount = mockHistorical.mock.calls.length;
+
+    // Second call - should use cache
+    await client.fetchHistoricalData();
+    const secondCallCount = mockHistorical.mock.calls.length;
+
+    expect(secondCallCount).toBe(firstCallCount); // No new API calls
+  });
+});
+
+describe('Stooq primary with Yahoo fallback', () => {
+  let client: MarketDataClient;
+
+  beforeEach(async () => {
+    const yahooFinanceMock = await import('yahoo-finance2') as unknown as {
+      __mockQuote: ReturnType<typeof vi.fn>;
+      __mockHistorical: ReturnType<typeof vi.fn>;
+    };
+    mockQuote = yahooFinanceMock.__mockQuote;
+    mockHistorical = yahooFinanceMock.__mockHistorical;
+
+    client = new MarketDataClient();
+    client.clearCache();
+    vi.clearAllMocks();
+  });
+
+  it('uses Stooq as primary data source', async () => {
+    // Mock global fetch for Stooq (returns CSV)
+    const stooqCsvResponse = `Symbol,Date,Time,Open,High,Low,Close,Volume
+TQQQ.US,2025-01-02,22:00:00,85.50,86.25,84.75,85.80,50000000`;
+
+    const mockFetch = vi.fn().mockImplementation((url: string) => {
+      if (url.includes('stooq.com')) {
+        return Promise.resolve({
+          ok: true,
+          text: () => Promise.resolve(stooqCsvResponse),
+        });
+      }
+      return Promise.resolve({ ok: false });
+    });
+    global.fetch = mockFetch;
+
+    // Create new client
+    const { MarketDataClient } = await import('@/lib/market-data/client');
+    const testClient = new MarketDataClient();
+    testClient.clearCache();
+
+    const result = await testClient.fetchCurrentData();
+
+    // Should have valid data from Stooq (not zeros)
+    expect(result.tqqq.currentPrice).toBeGreaterThan(0);
+    // Yahoo should NOT have been called since Stooq succeeded
+    expect(mockQuote).not.toHaveBeenCalled();
+  });
+
+  it('falls back to Yahoo Finance when Stooq fails', async () => {
+    // Mock Stooq to fail
+    const mockFetch = vi.fn().mockImplementation((url: string) => {
+      if (url.includes('stooq.com')) {
+        return Promise.resolve({ ok: false });
+      }
+      return Promise.resolve({ ok: false });
+    });
+    global.fetch = mockFetch;
+
+    // Mock Yahoo Finance to succeed
+    mockQuote.mockResolvedValue({
+      regularMarketPrice: 85.80,
+      regularMarketPreviousClose: 85.50,
+      regularMarketVolume: 50000000,
+    });
+
+    // Create new client
+    const { MarketDataClient } = await import('@/lib/market-data/client');
+    const testClient = new MarketDataClient();
+    testClient.clearCache();
+
+    const result = await testClient.fetchCurrentData();
+
+    // Should have valid data from Yahoo fallback
+    expect(result.tqqq.currentPrice).toBeGreaterThan(0);
+    // Yahoo should have been called as fallback
+    expect(mockQuote).toHaveBeenCalled();
+  });
+});
+
 describe('CurrentMarketData type', () => {
   it('has correct structure', () => {
     const data: CurrentMarketData = {
@@ -457,3 +578,996 @@ describe('CurrentMarketData type', () => {
     expect(data.sqqq.currentPrice).toBe(30);
   });
 });
+
+// ============================================================================
+// Phase 1.1: User-Agent Header and Request Timeout Tests
+// ============================================================================
+
+describe('Stooq User-Agent and Timeout', () => {
+  let client: MarketDataClient;
+  let originalFetch: typeof global.fetch;
+
+  beforeEach(async () => {
+    const yahooFinanceMock = await import('yahoo-finance2') as unknown as {
+      __mockQuote: ReturnType<typeof vi.fn>;
+      __mockHistorical: ReturnType<typeof vi.fn>;
+    };
+    mockQuote = yahooFinanceMock.__mockQuote;
+    mockHistorical = yahooFinanceMock.__mockHistorical;
+
+    originalFetch = global.fetch;
+    client = new MarketDataClient();
+    client.clearCache();
+    vi.clearAllMocks();
+  });
+
+  afterEach(() => {
+    global.fetch = originalFetch;
+    vi.useRealTimers();
+  });
+
+  it('includes User-Agent header in Stooq requests', async () => {
+    let capturedHeaders: HeadersInit | undefined;
+
+    const mockFetch = vi.fn().mockImplementation((url: string, options?: RequestInit) => {
+      if (url.includes('stooq.com')) {
+        capturedHeaders = options?.headers;
+        return Promise.resolve({
+          ok: true,
+          text: () => Promise.resolve(`Symbol,Date,Time,Open,High,Low,Close,Volume
+TQQQ.US,2025-01-02,22:00:00,85.50,86.25,84.75,85.80,50000000`),
+        });
+      }
+      return Promise.resolve({ ok: false });
+    });
+    global.fetch = mockFetch;
+
+    const { MarketDataClient } = await import('@/lib/market-data/client');
+    const testClient = new MarketDataClient();
+    testClient.clearCache();
+
+    await testClient.fetchCurrentData();
+
+    expect(capturedHeaders).toBeDefined();
+    expect((capturedHeaders as Record<string, string>)['User-Agent']).toContain('Mozilla');
+  });
+
+  it('uses AbortController with timeout for Stooq requests', async () => {
+    let capturedSignal: AbortSignal | undefined;
+
+    const mockFetch = vi.fn().mockImplementation((url: string, options?: RequestInit) => {
+      if (url.includes('stooq.com')) {
+        capturedSignal = options?.signal;
+        return Promise.resolve({
+          ok: true,
+          text: () => Promise.resolve(`Symbol,Date,Time,Open,High,Low,Close,Volume
+TQQQ.US,2025-01-02,22:00:00,85.50,86.25,84.75,85.80,50000000`),
+        });
+      }
+      return Promise.resolve({ ok: false });
+    });
+    global.fetch = mockFetch;
+
+    const { MarketDataClient } = await import('@/lib/market-data/client');
+    const testClient = new MarketDataClient();
+    testClient.clearCache();
+
+    await testClient.fetchCurrentData();
+
+    expect(capturedSignal).toBeDefined();
+    expect(capturedSignal).toBeInstanceOf(AbortSignal);
+  });
+
+  it('falls back to Yahoo Finance when Stooq times out', async () => {
+    vi.useFakeTimers();
+
+    // Mock Stooq to timeout (never resolve within timeout period)
+    const mockFetch = vi.fn().mockImplementation((url: string, options?: RequestInit) => {
+      if (url.includes('stooq.com')) {
+        return new Promise((_, reject) => {
+          // Simulate timeout by listening to abort signal
+          options?.signal?.addEventListener('abort', () => {
+            reject(new DOMException('Aborted', 'AbortError'));
+          });
+        });
+      }
+      return Promise.resolve({ ok: false });
+    });
+    global.fetch = mockFetch;
+
+    // Mock Yahoo Finance fallback
+    mockQuote.mockResolvedValue({
+      regularMarketPrice: 85.80,
+      regularMarketPreviousClose: 85.50,
+      regularMarketVolume: 50000000,
+    });
+
+    const { MarketDataClient } = await import('@/lib/market-data/client');
+    const testClient = new MarketDataClient();
+    testClient.clearCache();
+
+    const fetchPromise = testClient.fetchCurrentData();
+
+    // Advance timers to trigger timeout
+    await vi.advanceTimersByTimeAsync(6000);
+
+    const result = await fetchPromise;
+
+    // Should have fallen back to Yahoo Finance
+    expect(mockQuote).toHaveBeenCalled();
+    expect(result.tqqq.currentPrice).toBeGreaterThan(0);
+  });
+
+  it('VIX always falls back to Yahoo Finance (Stooq does not support VIX)', async () => {
+    // Stooq returns N/D for VIX
+    const mockFetch = vi.fn().mockImplementation((url: string) => {
+      if (url.includes('stooq.com') && url.includes('VIX')) {
+        return Promise.resolve({
+          ok: true,
+          text: () => Promise.resolve(`Symbol,Date,Time,Open,High,Low,Close,Volume
+^VIX,N/D,N/D,N/D,N/D,N/D,N/D,N/D`),
+        });
+      }
+      if (url.includes('stooq.com')) {
+        return Promise.resolve({
+          ok: true,
+          text: () => Promise.resolve(`Symbol,Date,Time,Open,High,Low,Close,Volume
+TQQQ.US,2025-01-02,22:00:00,85.50,86.25,84.75,85.80,50000000`),
+        });
+      }
+      return Promise.resolve({ ok: false });
+    });
+    global.fetch = mockFetch;
+
+    // Mock Yahoo Finance for VIX
+    mockQuote.mockResolvedValue({
+      regularMarketPrice: 18.50,
+      regularMarketPreviousClose: 18.00,
+      regularMarketVolume: 0,
+    });
+
+    const { MarketDataClient } = await import('@/lib/market-data/client');
+    const testClient = new MarketDataClient();
+    testClient.clearCache();
+
+    const result = await testClient.fetchCurrentData();
+
+    // VIX should have data from Yahoo fallback
+    expect(result.vix.currentPrice).toBeGreaterThan(0);
+    // Yahoo should have been called for VIX (quote takes 3 args: symbol, {}, { validateResult: false })
+    expect(mockQuote).toHaveBeenCalledWith('^VIX', {}, expect.objectContaining({ validateResult: false }));
+  });
+
+  it('clears timeout after successful Stooq response', async () => {
+    const clearTimeoutSpy = vi.spyOn(global, 'clearTimeout');
+
+    const mockFetch = vi.fn().mockImplementation((url: string) => {
+      if (url.includes('stooq.com')) {
+        return Promise.resolve({
+          ok: true,
+          text: () => Promise.resolve(`Symbol,Date,Time,Open,High,Low,Close,Volume
+TQQQ.US,2025-01-02,22:00:00,85.50,86.25,84.75,85.80,50000000`),
+        });
+      }
+      return Promise.resolve({ ok: false });
+    });
+    global.fetch = mockFetch;
+
+    const { MarketDataClient } = await import('@/lib/market-data/client');
+    const testClient = new MarketDataClient();
+    testClient.clearCache();
+
+    await testClient.fetchCurrentData();
+
+    // clearTimeout should have been called after successful response
+    expect(clearTimeoutSpy).toHaveBeenCalled();
+    clearTimeoutSpy.mockRestore();
+  });
+});
+
+// ============================================================================
+// Phase 1.2: Enhanced Error Logging Tests
+// ============================================================================
+
+describe('Enhanced Error Logging', () => {
+  let client: MarketDataClient;
+  let consoleWarnSpy: ReturnType<typeof vi.spyOn>;
+  let consoleErrorSpy: ReturnType<typeof vi.spyOn>;
+  let consoleLogSpy: ReturnType<typeof vi.spyOn>;
+
+  beforeEach(async () => {
+    const yahooFinanceMock = await import('yahoo-finance2') as unknown as {
+      __mockQuote: ReturnType<typeof vi.fn>;
+      __mockHistorical: ReturnType<typeof vi.fn>;
+    };
+    mockQuote = yahooFinanceMock.__mockQuote;
+    mockHistorical = yahooFinanceMock.__mockHistorical;
+
+    client = new MarketDataClient();
+    client.clearCache();
+    vi.clearAllMocks();
+
+    consoleWarnSpy = vi.spyOn(console, 'warn').mockImplementation(() => {});
+    consoleErrorSpy = vi.spyOn(console, 'error').mockImplementation(() => {});
+    consoleLogSpy = vi.spyOn(console, 'log').mockImplementation(() => {});
+  });
+
+  afterEach(() => {
+    consoleWarnSpy.mockRestore();
+    consoleErrorSpy.mockRestore();
+    consoleLogSpy.mockRestore();
+  });
+
+  it('logs warning when no historical data returned for symbol', async () => {
+    mockHistorical.mockResolvedValue([]);
+
+    await client.fetchHistoricalData();
+
+    // Should log a warning about empty data
+    expect(consoleWarnSpy).toHaveBeenCalledWith(
+      expect.stringContaining('No data returned')
+    );
+  });
+
+  it('logs success with data point count', async () => {
+    mockHistorical.mockResolvedValue([
+      { date: new Date('2024-01-15'), open: 50, high: 51, low: 49, close: 50.5, volume: 1000000 },
+      { date: new Date('2024-01-16'), open: 51, high: 52, low: 50, close: 51.5, volume: 1100000 },
+    ]);
+
+    await client.fetchHistoricalData();
+
+    // Should log success with structured log format (Yahoo fallback succeeds when Stooq not mocked)
+    expect(consoleLogSpy).toHaveBeenCalledWith(
+      expect.stringContaining('Yahoo Finance historical fallback succeeded')
+    );
+  });
+
+  it('logs detailed error context when historical fetch fails', async () => {
+    const error = new Error('Network error');
+    mockHistorical.mockRejectedValue(error);
+
+    await client.fetchHistoricalData();
+
+    // Should log error with structured log format (uses structuredLog)
+    expect(consoleErrorSpy).toHaveBeenCalledWith(
+      expect.stringContaining('All historical data sources failed')
+    );
+  });
+
+  it('detects and logs rate limit errors (429)', async () => {
+    const error = new Error('Request failed with status 429');
+    mockHistorical.mockRejectedValue(error);
+
+    await client.fetchHistoricalData();
+
+    // Rate limit errors are now classified by structuredLog
+    expect(consoleErrorSpy).toHaveBeenCalledWith(
+      expect.stringContaining('All historical data sources failed')
+    );
+  });
+});
+
+// ============================================================================
+// Phase 2.3: Retry with Exponential Backoff Tests
+// ============================================================================
+
+describe('Retry with Exponential Backoff', () => {
+  let client: MarketDataClient;
+
+  beforeEach(async () => {
+    const yahooFinanceMock = await import('yahoo-finance2') as unknown as {
+      __mockQuote: ReturnType<typeof vi.fn>;
+      __mockHistorical: ReturnType<typeof vi.fn>;
+    };
+    mockQuote = yahooFinanceMock.__mockQuote;
+    mockHistorical = yahooFinanceMock.__mockHistorical;
+
+    client = new MarketDataClient();
+    client.clearCache();
+    vi.clearAllMocks();
+  });
+
+  afterEach(() => {
+    vi.useRealTimers();
+  });
+
+  it('retries failed Yahoo Finance requests up to 3 times', async () => {
+    // Mock Stooq to fail
+    const mockFetch = vi.fn().mockResolvedValue({ ok: false });
+    global.fetch = mockFetch;
+
+    // Track call counts per symbol
+    const callCounts: Record<string, number> = {};
+
+    // Mock Yahoo to fail twice, then succeed for each symbol
+    mockQuote.mockImplementation((symbol: string) => {
+      callCounts[symbol] = (callCounts[symbol] || 0) + 1;
+
+      // Fail first 2 attempts, succeed on 3rd
+      if (callCounts[symbol] <= 2) {
+        return Promise.reject(new Error('Network error'));
+      }
+      return Promise.resolve({
+        regularMarketPrice: 85.80,
+        regularMarketPreviousClose: 85.50,
+        regularMarketVolume: 50000000,
+      });
+    });
+
+    const { MarketDataClient } = await import('@/lib/market-data/client');
+    const testClient = new MarketDataClient();
+    testClient.clearCache();
+
+    const result = await testClient.fetchCurrentData();
+
+    // Should have succeeded after retries
+    expect(result.tqqq.currentPrice).toBeGreaterThan(0);
+    // Each symbol should have been called 3 times (2 failures + 1 success)
+    expect(callCounts['TQQQ']).toBe(3);
+  });
+
+  it('does not retry on rate limit errors (429)', async () => {
+    const mockFetch = vi.fn().mockResolvedValue({ ok: false });
+    global.fetch = mockFetch;
+
+    // Mock Yahoo to return rate limit error
+    mockQuote.mockRejectedValue(new Error('Request failed with status 429'));
+
+    const { MarketDataClient } = await import('@/lib/market-data/client');
+    const testClient = new MarketDataClient();
+    testClient.clearCache();
+
+    await testClient.fetchCurrentData();
+
+    // Should have only called once per symbol (no retries for 429)
+    expect(mockQuote.mock.calls.filter(call => call[0] === 'TQQQ')).toHaveLength(1);
+  });
+
+  it('does not retry on client errors (400, 404)', async () => {
+    const mockFetch = vi.fn().mockResolvedValue({ ok: false });
+    global.fetch = mockFetch;
+
+    // Mock Yahoo to return 404 error
+    mockQuote.mockRejectedValue(new Error('Request failed with status 404'));
+
+    const { MarketDataClient } = await import('@/lib/market-data/client');
+    const testClient = new MarketDataClient();
+    testClient.clearCache();
+
+    await testClient.fetchCurrentData();
+
+    // Should have only called once per symbol (no retries for 404)
+    expect(mockQuote.mock.calls.filter(call => call[0] === 'TQQQ')).toHaveLength(1);
+  });
+
+  it('uses exponential backoff with jitter between retries', async () => {
+    vi.useFakeTimers();
+
+    const mockFetch = vi.fn().mockResolvedValue({ ok: false });
+    global.fetch = mockFetch;
+
+    // Track call counts per symbol
+    const callCounts: Record<string, number> = {};
+
+    // Mock Yahoo to fail twice, then succeed for each symbol
+    mockQuote.mockImplementation((symbol: string) => {
+      callCounts[symbol] = (callCounts[symbol] || 0) + 1;
+
+      // Fail first 2 attempts, succeed on 3rd
+      if (callCounts[symbol] <= 2) {
+        return Promise.reject(new Error('Network error'));
+      }
+      return Promise.resolve({
+        regularMarketPrice: 85.80,
+        regularMarketPreviousClose: 85.50,
+        regularMarketVolume: 50000000,
+      });
+    });
+
+    const { MarketDataClient } = await import('@/lib/market-data/client');
+    const testClient = new MarketDataClient();
+    testClient.clearCache();
+
+    const fetchPromise = testClient.fetchCurrentData();
+
+    // Advance through retry delays (need more time for all 4 symbols to retry)
+    await vi.advanceTimersByTimeAsync(10000);
+
+    await fetchPromise;
+
+    // Should have retried at least once (2+ calls per symbol)
+    expect(callCounts['TQQQ']).toBeGreaterThanOrEqual(2);
+  });
+});
+
+// ============================================================================
+// Phase 3.2: Cache Metrics Tests
+// ============================================================================
+
+describe('Cache Metrics', () => {
+  let client: MarketDataClient;
+
+  beforeEach(async () => {
+    const yahooFinanceMock = await import('yahoo-finance2') as unknown as {
+      __mockQuote: ReturnType<typeof vi.fn>;
+      __mockHistorical: ReturnType<typeof vi.fn>;
+    };
+    mockQuote = yahooFinanceMock.__mockQuote;
+    mockHistorical = yahooFinanceMock.__mockHistorical;
+
+    vi.clearAllMocks();
+  });
+
+  it('tracks cache hits and misses', async () => {
+    const mockFetch = vi.fn().mockImplementation((url: string) => {
+      if (url.includes('stooq.com')) {
+        return Promise.resolve({
+          ok: true,
+          text: () => Promise.resolve(`Symbol,Date,Time,Open,High,Low,Close,Volume
+TQQQ.US,2025-01-02,22:00:00,85.50,86.25,84.75,85.80,50000000`),
+        });
+      }
+      return Promise.resolve({ ok: false });
+    });
+    global.fetch = mockFetch;
+
+    const { MarketDataClient } = await import('@/lib/market-data/client');
+    const testClient = new MarketDataClient();
+    testClient.clearCache();
+
+    // First call - cache miss
+    await testClient.fetchCurrentData();
+    // Second call - cache hit
+    await testClient.fetchCurrentData();
+
+    const metrics = testClient.getMetrics();
+
+    expect(metrics).toBeDefined();
+    expect(metrics.cacheHits).toBeGreaterThanOrEqual(1);
+    expect(metrics.cacheMisses).toBeGreaterThanOrEqual(1);
+  });
+
+  it('calculates cache hit rate correctly', async () => {
+    const { MarketDataClient } = await import('@/lib/market-data/client');
+    const testClient = new MarketDataClient();
+
+    const metrics = testClient.getMetrics();
+
+    expect(metrics).toHaveProperty('cacheHitRate');
+    expect(typeof metrics.cacheHitRate).toBe('number');
+  });
+
+  it('tracks Stooq and Yahoo success/failure counts', async () => {
+    const { MarketDataClient } = await import('@/lib/market-data/client');
+    const testClient = new MarketDataClient();
+
+    const metrics = testClient.getMetrics();
+
+    expect(metrics).toHaveProperty('stooqSuccess');
+    expect(metrics).toHaveProperty('stooqFailed');
+    expect(metrics).toHaveProperty('yahooSuccess');
+    expect(metrics).toHaveProperty('yahooFailed');
+  });
+});
+
+// ============================================================================
+// Integration Tests: Full Fallback Chain
+// ============================================================================
+
+describe('Full Fallback Chain Integration', () => {
+  let client: MarketDataClient;
+
+  beforeEach(async () => {
+    const yahooFinanceMock = await import('yahoo-finance2') as unknown as {
+      __mockQuote: ReturnType<typeof vi.fn>;
+      __mockHistorical: ReturnType<typeof vi.fn>;
+    };
+    mockQuote = yahooFinanceMock.__mockQuote;
+    mockHistorical = yahooFinanceMock.__mockHistorical;
+
+    vi.clearAllMocks();
+  });
+
+  it('returns cached data when all sources fail', async () => {
+    // First call with working Stooq to populate cache
+    const mockFetch = vi.fn().mockImplementation((url: string) => {
+      if (url.includes('stooq.com')) {
+        return Promise.resolve({
+          ok: true,
+          text: () => Promise.resolve(`Symbol,Date,Time,Open,High,Low,Close,Volume
+TQQQ.US,2025-01-02,22:00:00,85.50,86.25,84.75,85.80,50000000`),
+        });
+      }
+      return Promise.resolve({ ok: false });
+    });
+    global.fetch = mockFetch;
+
+    const { MarketDataClient } = await import('@/lib/market-data/client');
+    const testClient = new MarketDataClient();
+    testClient.clearCache();
+
+    // First call - populate cache
+    await testClient.fetchCurrentData();
+
+    // Now make all sources fail
+    mockFetch.mockResolvedValue({ ok: false });
+    mockQuote.mockRejectedValue(new Error('Rate limited'));
+
+    // Second call - should use cache
+    const result = await testClient.fetchCurrentData();
+
+    // Should still have valid data from cache
+    expect(result.tqqq.currentPrice).toBeGreaterThan(0);
+  });
+
+  it('handles partial success (some symbols fail)', async () => {
+    // Mock Stooq to work for TQQQ but fail for SQQQ
+    const mockFetch = vi.fn().mockImplementation((url: string) => {
+      if (url.includes('stooq.com') && url.includes('TQQQ')) {
+        return Promise.resolve({
+          ok: true,
+          text: () => Promise.resolve(`Symbol,Date,Time,Open,High,Low,Close,Volume
+TQQQ.US,2025-01-02,22:00:00,85.50,86.25,84.75,85.80,50000000`),
+        });
+      }
+      return Promise.resolve({ ok: false });
+    });
+    global.fetch = mockFetch;
+
+    // Mock Yahoo to succeed for other symbols
+    mockQuote.mockResolvedValue({
+      regularMarketPrice: 68.97,
+      regularMarketPreviousClose: 69.50,
+      regularMarketVolume: 37000000,
+    });
+
+    const { MarketDataClient } = await import('@/lib/market-data/client');
+    const testClient = new MarketDataClient();
+    testClient.clearCache();
+
+    const result = await testClient.fetchCurrentData();
+
+    // Both should have data (one from Stooq, one from Yahoo fallback)
+    expect(result.tqqq.currentPrice).toBeGreaterThan(0);
+    expect(result.sqqq.currentPrice).toBeGreaterThan(0);
+  });
+
+  it('handles concurrent requests by caching after first batch completes', async () => {
+    let fetchCallCount = 0;
+
+    const mockFetch = vi.fn().mockImplementation((url: string) => {
+      if (url.includes('stooq.com')) {
+        fetchCallCount++;
+        return Promise.resolve({
+          ok: true,
+          text: () => Promise.resolve(`Symbol,Date,Time,Open,High,Low,Close,Volume
+TQQQ.US,2025-01-02,22:00:00,85.50,86.25,84.75,85.80,50000000`),
+        });
+      }
+      return Promise.resolve({ ok: false });
+    });
+    global.fetch = mockFetch;
+
+    const { MarketDataClient } = await import('@/lib/market-data/client');
+    const testClient = new MarketDataClient();
+    testClient.clearCache();
+
+    // First batch of concurrent requests - will all hit API
+    const firstBatch = Array(5).fill(null).map(() =>
+      testClient.fetchCurrentData()
+    );
+    await Promise.all(firstBatch);
+    const firstBatchCalls = fetchCallCount;
+
+    // Second batch - should all use cache
+    const secondBatch = Array(5).fill(null).map(() =>
+      testClient.fetchCurrentData()
+    );
+    await Promise.all(secondBatch);
+    const secondBatchCalls = fetchCallCount - firstBatchCalls;
+
+    // Second batch should make zero new API calls (all cached)
+    expect(secondBatchCalls).toBe(0);
+
+    // First batch makes 4 calls per concurrent request due to parallel fetches
+    // But caching kicks in after first request completes
+    expect(firstBatchCalls).toBeGreaterThan(0);
+  });
+});
+
+// ============================================================================
+// Stale Data Indicator Tests (Phase 2.1)
+// ============================================================================
+
+describe('Stale Data Indicator', () => {
+  beforeEach(async () => {
+    vi.useFakeTimers();
+
+    const yahooFinanceMock = (await import('yahoo-finance2')) as unknown as {
+      __mockQuote: ReturnType<typeof vi.fn>;
+      __mockHistorical: ReturnType<typeof vi.fn>;
+    };
+    mockQuote = yahooFinanceMock.__mockQuote;
+    mockHistorical = yahooFinanceMock.__mockHistorical;
+
+    vi.clearAllMocks();
+    // Set fixed timestamp for predictable tests
+    vi.setSystemTime(new Date('2024-01-15T16:00:00Z'));
+  });
+
+  afterEach(() => {
+    vi.useRealTimers();
+  });
+
+  it('returns fresh data without stale indicators on first fetch', async () => {
+    // Mock successful Stooq response
+    global.fetch = vi.fn().mockResolvedValue({
+      ok: true,
+      text: () =>
+        Promise.resolve(
+          'Symbol,Date,Time,Open,High,Low,Close,Volume\nQQQ.US,2024-01-15,16:00:00,420.50,422.00,419.00,421.25,50000000'
+        ),
+    });
+
+    const client = new MarketDataClient();
+    const result = await client.fetchCurrentData();
+
+    // Fresh data should not have stale indicators
+    expect(result.isStale).toBeUndefined();
+    expect(result.cacheAge).toBeUndefined();
+  });
+
+  it('returns cached data with fresh indicator when within TTL', async () => {
+    // Mock successful Stooq response
+    global.fetch = vi.fn().mockResolvedValue({
+      ok: true,
+      text: () =>
+        Promise.resolve(
+          'Symbol,Date,Time,Open,High,Low,Close,Volume\nQQQ.US,2024-01-15,16:00:00,420.50,422.00,419.00,421.25,50000000'
+        ),
+    });
+
+    const client = new MarketDataClient();
+
+    // First fetch - populate cache
+    await client.fetchCurrentData();
+
+    // Advance time by 2 minutes (still within 5 min TTL)
+    vi.advanceTimersByTime(2 * 60 * 1000);
+
+    // Second fetch - should use cache and indicate freshness
+    const result = await client.fetchCurrentData();
+
+    // Within TTL, should indicate not stale
+    expect(result.isStale).toBe(false);
+    expect(result.cacheAge).toBeCloseTo(2 * 60 * 1000, -2); // ~2 minutes in ms
+  });
+
+  it('returns cached data with stale indicator when cache is expired but used as fallback', async () => {
+    // Mock successful Stooq response first, then failure
+    const mockFetch = vi.fn();
+    global.fetch = mockFetch;
+
+    // First call succeeds
+    mockFetch.mockResolvedValueOnce({
+      ok: true,
+      text: () =>
+        Promise.resolve(
+          'Symbol,Date,Time,Open,High,Low,Close,Volume\nQQQ.US,2024-01-15,16:00:00,420.50,422.00,419.00,421.25,50000000'
+        ),
+    });
+
+    const client = new MarketDataClient();
+
+    // First fetch - populate cache
+    await client.fetchCurrentData();
+
+    // Advance time by 6 minutes (past 5 min TTL)
+    vi.advanceTimersByTime(6 * 60 * 1000);
+
+    // Mock failure for all subsequent calls (use 404 to skip retries)
+    mockFetch.mockResolvedValue({ ok: false });
+    mockQuote.mockRejectedValue(new Error('404 Not Found'));
+
+    // Third fetch - should use stale cache as fallback
+    const result = await client.fetchCurrentData();
+
+    // Should indicate stale data
+    expect(result.isStale).toBe(true);
+    expect(result.cacheAge).toBeCloseTo(6 * 60 * 1000, -2); // ~6 minutes in ms
+  }, 10000);
+
+  it('includes cacheAge in milliseconds', async () => {
+    global.fetch = vi.fn().mockResolvedValue({
+      ok: true,
+      text: () =>
+        Promise.resolve(
+          'Symbol,Date,Time,Open,High,Low,Close,Volume\nQQQ.US,2024-01-15,16:00:00,420.50,422.00,419.00,421.25,50000000'
+        ),
+    });
+
+    const client = new MarketDataClient();
+
+    // First fetch
+    await client.fetchCurrentData();
+
+    // Advance time by 3 minutes
+    vi.advanceTimersByTime(3 * 60 * 1000);
+
+    const result = await client.fetchCurrentData();
+
+    // cacheAge should be close to 3 minutes in ms
+    expect(result.cacheAge).toBeDefined();
+    expect(result.cacheAge).toBeCloseTo(3 * 60 * 1000, -2);
+  });
+
+  it('sets isStale to true when cache is older than TTL', async () => {
+    const mockFetch = vi.fn();
+    global.fetch = mockFetch;
+
+    // First call succeeds
+    mockFetch.mockResolvedValueOnce({
+      ok: true,
+      text: () =>
+        Promise.resolve(
+          'Symbol,Date,Time,Open,High,Low,Close,Volume\nQQQ.US,2024-01-15,16:00:00,420.50,422.00,419.00,421.25,50000000'
+        ),
+    });
+
+    const client = new MarketDataClient();
+    await client.fetchCurrentData();
+
+    // Advance past TTL
+    vi.advanceTimersByTime(10 * 60 * 1000); // 10 minutes
+
+    // All subsequent calls fail with 404 (to skip retries)
+    mockFetch.mockResolvedValue({ ok: false });
+    mockQuote.mockRejectedValue(new Error('404 Not Found'));
+
+    const result = await client.fetchCurrentData();
+
+    expect(result.isStale).toBe(true);
+  }, 10000);
+
+  it('sets isStale to false when cache is within TTL', async () => {
+    global.fetch = vi.fn().mockResolvedValue({
+      ok: true,
+      text: () =>
+        Promise.resolve(
+          'Symbol,Date,Time,Open,High,Low,Close,Volume\nQQQ.US,2024-01-15,16:00:00,420.50,422.00,419.00,421.25,50000000'
+        ),
+    });
+
+    const client = new MarketDataClient();
+    await client.fetchCurrentData();
+
+    // Advance but stay within TTL
+    vi.advanceTimersByTime(4 * 60 * 1000); // 4 minutes
+
+    const result = await client.fetchCurrentData();
+
+    expect(result.isStale).toBe(false);
+  });
+});
+
+// ============================================================================
+// Error Classification Tests (Phase 2.2)
+// ============================================================================
+
+describe('classifyError', () => {
+  describe('Rate Limit Errors', () => {
+    it('classifies 429 error as RATE_LIMIT', () => {
+      const result = classifyError(new Error('HTTP 429 Too Many Requests'));
+      expect(result.type).toBe(DataSourceError.RATE_LIMIT);
+      expect(result.retryAfter).toBe(60);
+    });
+
+    it('classifies rate limit message as RATE_LIMIT', () => {
+      const result = classifyError(new Error('Rate limit exceeded'));
+      expect(result.type).toBe(DataSourceError.RATE_LIMIT);
+      expect(result.retryAfter).toBe(60);
+    });
+  });
+
+  describe('Network Errors', () => {
+    it('classifies ENOTFOUND as NETWORK', () => {
+      const result = classifyError(new Error('getaddrinfo ENOTFOUND api.example.com'));
+      expect(result.type).toBe(DataSourceError.NETWORK);
+      expect(result.retryAfter).toBe(5);
+    });
+
+    it('classifies ECONNREFUSED as NETWORK', () => {
+      const result = classifyError(new Error('connect ECONNREFUSED 127.0.0.1:8080'));
+      expect(result.type).toBe(DataSourceError.NETWORK);
+      expect(result.retryAfter).toBe(5);
+    });
+
+    it('classifies fetch failed as NETWORK', () => {
+      const result = classifyError(new Error('Fetch failed'));
+      expect(result.type).toBe(DataSourceError.NETWORK);
+      expect(result.retryAfter).toBe(5);
+    });
+  });
+
+  describe('Timeout Errors', () => {
+    it('classifies timeout as TIMEOUT', () => {
+      const result = classifyError(new Error('Request timeout'));
+      expect(result.type).toBe(DataSourceError.TIMEOUT);
+      expect(result.retryAfter).toBe(5);
+    });
+
+    it('classifies AbortError as TIMEOUT', () => {
+      const result = classifyError(new Error('AbortError: signal is aborted'));
+      expect(result.type).toBe(DataSourceError.TIMEOUT);
+      expect(result.retryAfter).toBe(5);
+    });
+  });
+
+  describe('Invalid Symbol Errors', () => {
+    it('classifies 404 as INVALID_SYMBOL', () => {
+      const result = classifyError(new Error('HTTP 404 Not Found'));
+      expect(result.type).toBe(DataSourceError.INVALID_SYMBOL);
+      expect(result.retryAfter).toBeUndefined();
+    });
+
+    it('classifies not found message as INVALID_SYMBOL', () => {
+      const result = classifyError(new Error('Symbol not found'));
+      expect(result.type).toBe(DataSourceError.INVALID_SYMBOL);
+      expect(result.retryAfter).toBeUndefined();
+    });
+  });
+
+  describe('Server Errors', () => {
+    it('classifies 500 as SERVER_ERROR', () => {
+      const result = classifyError(new Error('HTTP 500 Internal Server Error'));
+      expect(result.type).toBe(DataSourceError.SERVER_ERROR);
+      expect(result.retryAfter).toBe(30);
+    });
+
+    it('classifies 502 as SERVER_ERROR', () => {
+      const result = classifyError(new Error('HTTP 502 Bad Gateway'));
+      expect(result.type).toBe(DataSourceError.SERVER_ERROR);
+      expect(result.retryAfter).toBe(30);
+    });
+
+    it('classifies 503 as SERVER_ERROR', () => {
+      const result = classifyError(new Error('HTTP 503 Service Unavailable'));
+      expect(result.type).toBe(DataSourceError.SERVER_ERROR);
+      expect(result.retryAfter).toBe(30);
+    });
+  });
+
+  describe('Unknown Errors', () => {
+    it('classifies unknown errors as UNKNOWN', () => {
+      const result = classifyError(new Error('Something went wrong'));
+      expect(result.type).toBe(DataSourceError.UNKNOWN);
+      expect(result.retryAfter).toBeUndefined();
+    });
+
+    it('handles non-Error objects', () => {
+      const result = classifyError('string error');
+      expect(result.type).toBe(DataSourceError.UNKNOWN);
+    });
+
+    it('handles null', () => {
+      const result = classifyError(null);
+      expect(result.type).toBe(DataSourceError.UNKNOWN);
+    });
+  });
+});
+
+// ============================================================================
+// Structured Logging Tests (Phase 3.1)
+// ============================================================================
+
+describe('structuredLog', () => {
+  const originalEnv = process.env.NODE_ENV;
+
+  beforeEach(() => {
+    vi.clearAllMocks();
+    vi.spyOn(console, 'log').mockImplementation(() => {});
+    vi.spyOn(console, 'error').mockImplementation(() => {});
+    vi.spyOn(console, 'warn').mockImplementation(() => {});
+    vi.spyOn(console, 'debug').mockImplementation(() => {});
+  });
+
+  afterEach(() => {
+    process.env.NODE_ENV = originalEnv;
+    vi.restoreAllMocks();
+  });
+
+  describe('Development Mode', () => {
+    beforeEach(() => {
+      process.env.NODE_ENV = 'development';
+    });
+
+    it('logs INFO level with console.log', () => {
+      structuredLog(LogLevel.INFO, 'Test message');
+      expect(console.log).toHaveBeenCalledWith(expect.stringContaining('[INFO] Test message'));
+    });
+
+    it('logs ERROR level with console.error', () => {
+      structuredLog(LogLevel.ERROR, 'Error message');
+      expect(console.error).toHaveBeenCalledWith(expect.stringContaining('[ERROR] Error message'));
+    });
+
+    it('logs WARN level with console.warn', () => {
+      structuredLog(LogLevel.WARN, 'Warning message');
+      expect(console.warn).toHaveBeenCalledWith(expect.stringContaining('[WARN] Warning message'));
+    });
+
+    it('logs DEBUG level with console.debug', () => {
+      structuredLog(LogLevel.DEBUG, 'Debug message');
+      expect(console.debug).toHaveBeenCalledWith(expect.stringContaining('[DEBUG] Debug message'));
+    });
+
+    it('includes context in log output', () => {
+      structuredLog(LogLevel.INFO, 'Test', {
+        component: 'MarketDataClient',
+        action: 'fetchQuote',
+        symbol: 'TQQQ',
+      });
+      expect(console.log).toHaveBeenCalledWith(
+        expect.stringContaining('MarketDataClient')
+      );
+    });
+  });
+
+  describe('Production Mode', () => {
+    beforeEach(() => {
+      process.env.NODE_ENV = 'production';
+    });
+
+    it('outputs JSON format', () => {
+      structuredLog(LogLevel.INFO, 'Test message');
+      expect(console.log).toHaveBeenCalled();
+      const logOutput = (console.log as ReturnType<typeof vi.fn>).mock.calls[0][0];
+      const parsed = JSON.parse(logOutput);
+      expect(parsed.level).toBe('INFO');
+      expect(parsed.message).toBe('Test message');
+    });
+
+    it('includes timestamp in JSON output', () => {
+      structuredLog(LogLevel.INFO, 'Test');
+      const logOutput = (console.log as ReturnType<typeof vi.fn>).mock.calls[0][0];
+      const parsed = JSON.parse(logOutput);
+      expect(parsed.timestamp).toBeDefined();
+      expect(new Date(parsed.timestamp).getTime()).not.toBeNaN();
+    });
+
+    it('includes context in JSON output', () => {
+      structuredLog(LogLevel.INFO, 'Fetch complete', {
+        component: 'MarketDataClient',
+        action: 'fetchCurrentData',
+        duration: 150,
+        source: 'stooq',
+      });
+      const logOutput = (console.log as ReturnType<typeof vi.fn>).mock.calls[0][0];
+      const parsed = JSON.parse(logOutput);
+      expect(parsed.component).toBe('MarketDataClient');
+      expect(parsed.action).toBe('fetchCurrentData');
+      expect(parsed.duration).toBe(150);
+      expect(parsed.source).toBe('stooq');
+    });
+  });
+
+  describe('Log Levels', () => {
+    it('has DEBUG level', () => {
+      expect(LogLevel.DEBUG).toBe('DEBUG');
+    });
+
+    it('has INFO level', () => {
+      expect(LogLevel.INFO).toBe('INFO');
+    });
+
+    it('has WARN level', () => {
+      expect(LogLevel.WARN).toBe('WARN');
+    });
+
+    it('has ERROR level', () => {
+      expect(LogLevel.ERROR).toBe('ERROR');
+    });
+  });
+});
+
