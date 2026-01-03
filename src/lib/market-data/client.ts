@@ -68,7 +68,13 @@ async function withRetry<T>(
       const jitter = Math.random() * 500; // Add 0-500ms jitter
       const delay = Math.min(baseDelay + jitter, options.maxDelay);
 
-      console.log(`[Retry] Attempt ${attempt}/${options.maxAttempts} failed, waiting ${Math.round(delay)}ms...`);
+      structuredLog(LogLevel.DEBUG, 'Retry attempt failed, backing off', {
+        component: 'MarketDataClient',
+        action: 'withRetry',
+        attempt,
+        maxAttempts: options.maxAttempts,
+        delayMs: Math.round(delay),
+      });
       await new Promise(resolve => setTimeout(resolve, delay));
     }
   }
@@ -421,7 +427,6 @@ async function fetchStooqHistoricalData(
       return null;
     }
 
-    console.log(`Stooq: Fetched ${dataPoints.length} historical data points for ${symbol}`);
     return dataPoints;
   } catch (error) {
     clearTimeout(timeoutId);
@@ -512,7 +517,6 @@ export async function fetchFredVixHistorical(days: number = 30): Promise<Histori
       dataPoints: result.length,
     });
 
-    console.log(`FRED: Fetched ${result.length} VIX historical data points`);
     return result;
   } catch (error) {
     clearTimeout(timeoutId);
@@ -910,8 +914,6 @@ export class MarketDataClient {
       });
     } else {
       // VIX: Go straight to Yahoo Finance
-      console.log(`[DEBUG VIX] Fetching VIX historical from Yahoo Finance: ${symbol}`);
-      console.log(`[DEBUG VIX] Date range: ${startDate.toISOString()} to ${endDate.toISOString()}`);
       structuredLog(LogLevel.INFO, 'Fetching VIX from Yahoo Finance', {
         component: 'MarketDataClient',
         action: 'fetchSymbolHistory',
@@ -921,7 +923,6 @@ export class MarketDataClient {
     }
 
     try {
-      console.log(`[DEBUG] Yahoo Finance historical call for: ${symbol}`);
       const history = await withRetry(
         () => yahooFinance.historical(symbol, {
           period1: startDate,
@@ -930,11 +931,14 @@ export class MarketDataClient {
         { maxAttempts: 3, baseDelay: 1000, maxDelay: 5000 }
       );
 
-      console.log(`[DEBUG] Yahoo Finance response for ${symbol}: ${history?.length ?? 0} items`);
-
       // Validate response
       if (!history || history.length === 0) {
-        console.warn(`[DEBUG] No data returned for ${symbol} from Yahoo Finance`);
+        structuredLog(LogLevel.WARN, 'No data returned from Yahoo Finance', {
+          component: 'MarketDataClient',
+          action: 'fetchSymbolHistory',
+          symbol,
+          source: 'yahoo',
+        });
         this.metrics.yahooFailed++;
         return [];
       }
@@ -962,12 +966,6 @@ export class MarketDataClient {
       const { type: errorType, retryAfter } = classifyError(error);
       const errorMessage = error instanceof Error ? error.message : String(error);
 
-      // Enhanced debug logging for VIX
-      console.error(`[DEBUG ERROR] Yahoo Finance failed for ${symbol}:`, error);
-      if (symbol === SYMBOLS.VIX) {
-        console.error(`[DEBUG VIX ERROR] Full error details:`, JSON.stringify(error, Object.getOwnPropertyNames(error), 2));
-      }
-
       this.metrics.yahooFailed++;
 
       // VIX fallback: Try FRED when Yahoo fails (especially on 429 rate limit)
@@ -994,8 +992,6 @@ export class MarketDataClient {
           });
           return fredData;
         }
-
-        console.warn('[DEBUG VIX] FRED fallback also failed');
       }
 
       structuredLog(LogLevel.ERROR, 'All historical data sources failed for symbol', {

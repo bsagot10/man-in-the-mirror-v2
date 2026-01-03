@@ -20,13 +20,50 @@ This file provides guidance to Claude Code when working with code in this reposi
 ## Build Commands
 
 ```bash
-npm run dev           # Start dev server
-npm run test          # Run tests (Vitest)
-npm run test:watch    # Watch mode
-npm run build         # Production build
-npm run lint          # ESLint
-INTEGRATION_TESTS=true npm run test -- realApiResponses.test.ts  # Integration tests
+bun run dev           # Start dev server
+bun run dev:turbo     # Turbopack dev server (experimental, faster)
+bun run test          # Run tests (Vitest)
+bun run test:watch    # Watch mode
+bun run build         # Production build
+bun run lint          # ESLint
+bun run lint:fix      # Auto-fix linting issues
+bun run lint:files    # Lint specific files
+bun run typecheck     # TypeScript validation
+bun run preflight     # Pre-PR: typecheck + lint + test
+INTEGRATION_TESTS=true bun run test -- realApiResponses.test.ts  # Integration tests
 ```
+<!-- END AUTO-MANAGED -->
+
+<!-- AUTO-MANAGED: development-workflow -->
+## Development Workflow
+
+**Package Manager:** Use `bun` instead of `npm` for faster execution.
+
+### During Development
+```bash
+bun run dev:turbo          # Turbopack dev server (faster)
+bun run test:watch         # Auto-runs tests on save (PREFERRED)
+```
+
+### Before Committing
+```bash
+bun run typecheck              # Type validation
+bun run test -- -t "name"      # Run specific test by name
+bun run test -- "**/*.test.ts" # Run tests matching glob
+bun run lint                   # Lint all files
+bun run lint:files -- file.ts  # Lint specific file
+```
+
+### Before Creating PR
+```bash
+bun run preflight          # typecheck + lint + test (single command)
+```
+
+### Claude Requirements
+When making code changes, Claude MUST:
+1. Use `bun run test:watch` during active development
+2. Run `bun run typecheck` before any commit
+3. Run `bun run preflight` before marking task complete
 <!-- END AUTO-MANAGED -->
 
 <!-- AUTO-MANAGED: architecture -->
@@ -64,6 +101,7 @@ __tests__/
 - Cache: 5 min (current), 15 min (historical)
 - Retry: Exponential backoff (max 3, 1s-5s delay, jitter), fail-fast on 429 rate limits
 - VIX historical: Yahoo Finance primary, FRED fallback (to avoid 429 errors)
+- VIX forward-fill: Extends VIX data to match TQQQ/SQQQ end dates (handles FRED 1-day lag)
 - Error handling: Structured logging (LogLevel), error classification (DataSourceError)
 - Metrics tracking: success/failure per source, cache hit rate
 <!-- END AUTO-MANAGED -->
@@ -117,6 +155,7 @@ __tests__/
 - **Retry Logic**: Exponential backoff (1s-5s) with random jitter, max 3 attempts, skip on 4xx errors
 - **Structured Logging**: `structuredLog(level, message, context)` with JSON output in production
 - **Error Classification**: Map exceptions to `DataSourceError` enum with `retryAfter` metadata
+- **VIX Forward-Fill**: `alignVixToEndDate()` extends VIX with last known value to match ETF end dates
 - **Position Sizing**: VIX regime-based allocation (30-50% based on VIX level)
 - **Deferred Updates**: Live calculation in background, commit on user action
 - **Charts**: Use 'scatter' type (never 'scattergl'), spline smoothing, processChartData()
@@ -175,6 +214,7 @@ describe('Component', () => {
 <!-- MANUAL -->
 ## Development Notes
 
+- **Node Version**: Requires Node.js >= 22.0.0 (yahoo-finance2 dependency)
 - Cache: 5 min (current), 15 min (historical) to reduce API calls
 - Primary: Stooq (no API key, CSV format)
 - Fallback: Yahoo Finance with `validateResult: false`
