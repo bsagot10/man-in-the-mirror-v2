@@ -525,6 +525,58 @@ export async function fetchFredVixHistorical(days: number = 30): Promise<Histori
   }
 }
 
+/**
+ * Forward-fill VIX data to match the end date of other charts.
+ * Uses last known VIX value for missing trading days.
+ * This handles the FRED 1-day lag issue by extending VIX to match TQQQ/SQQQ.
+ */
+function alignVixToEndDate(
+  vixHistory: HistoricalDataPoint[],
+  targetEndDate: string
+): HistoricalDataPoint[] {
+  if (vixHistory.length === 0) return vixHistory;
+
+  const lastVix = vixHistory[vixHistory.length - 1];
+  const lastVixDate = new Date(lastVix.date);
+  const targetDate = new Date(targetEndDate);
+
+  // If already aligned or ahead, return as-is
+  if (lastVixDate >= targetDate) return vixHistory;
+
+  // Generate missing trading days (skip weekends)
+  const result = [...vixHistory];
+  const currentDate = new Date(lastVixDate);
+  currentDate.setDate(currentDate.getDate() + 1);
+
+  while (currentDate <= targetDate) {
+    const dayOfWeek = currentDate.getDay();
+    // Skip weekends (0=Sunday, 6=Saturday)
+    if (dayOfWeek !== 0 && dayOfWeek !== 6) {
+      result.push({
+        date: currentDate.toISOString().split('T')[0],
+        open: lastVix.close,
+        high: lastVix.close,
+        low: lastVix.close,
+        close: lastVix.close,
+        volume: 0,
+      });
+    }
+    currentDate.setDate(currentDate.getDate() + 1);
+  }
+
+  if (result.length > vixHistory.length) {
+    structuredLog(LogLevel.INFO, 'VIX forward-filled to align with ETF data', {
+      component: 'MarketDataClient',
+      action: 'alignVixToEndDate',
+      originalEndDate: lastVix.date,
+      targetEndDate,
+      filledDays: result.length - vixHistory.length,
+    });
+  }
+
+  return result;
+}
+
 
 // ============================================================================
 // Utility Functions
@@ -798,8 +850,19 @@ export class MarketDataClient {
         this.fetchSymbolHistory(SYMBOLS.SQQQ, startDate, endDate),
       ]);
 
+      // Align VIX to match TQQQ/SQQQ end date (handles FRED 1-day lag)
+      const tqqqEndDate = tqqqHistory?.[tqqqHistory.length - 1]?.date;
+      const sqqqEndDate = sqqqHistory?.[sqqqHistory.length - 1]?.date;
+      const targetEndDate = tqqqEndDate && sqqqEndDate
+        ? (tqqqEndDate > sqqqEndDate ? tqqqEndDate : sqqqEndDate)
+        : tqqqEndDate || sqqqEndDate;
+
+      const alignedVix = targetEndDate && vixHistory
+        ? alignVixToEndDate(vixHistory, targetEndDate)
+        : vixHistory ?? emptyData;
+
       const data: HistoricalData = {
-        vix: vixHistory ?? emptyData,
+        vix: alignedVix,
         tqqq: tqqqHistory ?? emptyData,
         sqqq: sqqqHistory ?? emptyData,
       };
