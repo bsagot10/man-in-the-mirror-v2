@@ -9,6 +9,16 @@
 import { NextResponse } from 'next/server';
 import { marketDataClient } from '@/lib/market-data/client';
 
+// Health status thresholds (percentage)
+const HEALTHY_THRESHOLD = 50;
+const DEGRADED_THRESHOLD = 20;
+
+function getHealthStatus(successRate: number): 'healthy' | 'degraded' | 'unhealthy' {
+  if (successRate >= HEALTHY_THRESHOLD) return 'healthy';
+  if (successRate >= DEGRADED_THRESHOLD) return 'degraded';
+  return 'unhealthy';
+}
+
 export async function GET() {
   try {
     const metrics = marketDataClient.getMetrics();
@@ -18,8 +28,7 @@ export async function GET() {
       ? ((metrics.stooqSuccess + metrics.yahooSuccess) / totalCalls) * 100
       : 100; // Assume healthy if no calls yet
 
-    const status = successRate >= 50 ? 'healthy' :
-                   successRate >= 20 ? 'degraded' : 'unhealthy';
+    const status = getHealthStatus(successRate);
 
     return NextResponse.json(
       {
