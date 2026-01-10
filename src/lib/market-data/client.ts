@@ -17,6 +17,7 @@ const yahooFinance = new YahooFinance();
 
 const STOOQ_USER_AGENT = 'Mozilla/5.0 (compatible; ManInTheMirror/1.0; +https://github.com/bsagot10/man-in-the-mirror-v2)';
 const STOOQ_TIMEOUT_MS = 5000; // 5 second timeout
+const RETRY_JITTER_MAX_MS = 500; // Max random jitter for retry backoff
 
 // ============================================================================
 // Retry Utility with Exponential Backoff
@@ -65,7 +66,7 @@ async function withRetry<T>(
 
       // Exponential backoff with jitter
       const baseDelay = options.baseDelay * Math.pow(2, attempt - 1);
-      const jitter = Math.random() * 500; // Add 0-500ms jitter
+      const jitter = Math.random() * RETRY_JITTER_MAX_MS;
       const delay = Math.min(baseDelay + jitter, options.maxDelay);
 
       structuredLog(LogLevel.DEBUG, 'Retry attempt failed, backing off', {
