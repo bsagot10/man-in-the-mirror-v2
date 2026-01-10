@@ -36,13 +36,17 @@ const MAX_DECAY_SCORE = 30;
 // Unified max for visual comparison - all bars use same scale
 const UNIFIED_VISUAL_MAX = 100;
 
+// Score thresholds for color coding
+const SCORE_GOOD_THRESHOLD = 70;
+const SCORE_MODERATE_THRESHOLD = 50;
+
 // ============================================================================
 // Helper Functions
 // ============================================================================
 
 function getTotalColor(total: number): string {
-  if (total >= 70) return 'text-green-500';
-  if (total >= 50) return 'text-yellow-500';
+  if (total >= SCORE_GOOD_THRESHOLD) return 'text-green-500';
+  if (total >= SCORE_MODERATE_THRESHOLD) return 'text-yellow-500';
   return 'text-red-500';
 }
 

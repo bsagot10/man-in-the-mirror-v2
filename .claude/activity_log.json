@@ -1702,5 +1702,17 @@
     "action": "edit",
     "file": "/Volumes/T7 K/Documents/Graph1/man-in-the-mirror-v2/src/types/chart-types.ts",
     "domain": "Backend"
+  },
+  {
+    "time": "2026-01-10T08:38:47Z",
+    "action": "edit",
+    "file": "/Volumes/T7 K/Documents/Graph1/man-in-the-mirror-v2/src/components/dashboard/MarketMetrics.tsx",
+    "domain": "Frontend"
+  },
+  {
+    "time": "2026-01-10T08:39:10Z",
+    "action": "edit",
+    "file": "/Volumes/T7 K/Documents/Graph1/man-in-the-mirror-v2/src/components/dashboard/EntryScoreDisplay.tsx",
+    "domain": "Frontend"
   }
 ]

@@ -34,74 +34,52 @@ export interface MarketMetricsProps {
 }
 
 // ============================================================================
+// Lookup Tables (simpler than switch statements)
+// ============================================================================
+
+const SIGNAL_COLORS: Record<Signal, string> = {
+  ENTER: 'text-green-500',
+  WATCH: 'text-yellow-500',
+  WAIT: 'text-red-500',
+};
+
+const REGIME_COLORS: Record<VixRegime, string> = {
+  Low: 'text-green-500',
+  Moderate: 'text-yellow-500',
+  High: 'text-orange-500',
+  Extreme: 'text-red-500',
+};
+
+const TREND_CONFIG: Record<MarketTrend, { color: string; arrow: string; label: string }> = {
+  bullish: { color: 'text-green-500', arrow: '↑', label: 'Bullish' },
+  bearish: { color: 'text-red-500', arrow: '↓', label: 'Bearish' },
+  neutral: { color: 'text-yellow-500', arrow: '→', label: 'Neutral' },
+};
+
+const DEFAULT_COLOR = 'text-warm-600';
+
+// ============================================================================
 // Helper Functions
 // ============================================================================
 
 function getSignalColor(signal?: Signal): string {
-  switch (signal) {
-    case 'ENTER':
-      return 'text-green-500';
-    case 'WATCH':
-      return 'text-yellow-500';
-    case 'WAIT':
-      return 'text-red-500';
-    default:
-      return 'text-warm-600';
-  }
+  return signal ? SIGNAL_COLORS[signal] : DEFAULT_COLOR;
 }
 
 function getRegimeColor(regime?: VixRegime): string {
-  switch (regime) {
-    case 'Low':
-      return 'text-green-500';
-    case 'Moderate':
-      return 'text-yellow-500';
-    case 'High':
-      return 'text-orange-500';
-    case 'Extreme':
-      return 'text-red-500';
-    default:
-      return 'text-warm-600';
-  }
+  return regime ? REGIME_COLORS[regime] : DEFAULT_COLOR;
 }
 
 function getTrendColor(trend?: MarketTrend): string {
-  switch (trend) {
-    case 'bullish':
-      return 'text-green-500';
-    case 'bearish':
-      return 'text-red-500';
-    case 'neutral':
-      return 'text-yellow-500';
-    default:
-      return 'text-warm-600';
-  }
+  return trend ? TREND_CONFIG[trend].color : DEFAULT_COLOR;
 }
 
 function getTrendArrow(trend?: MarketTrend): string {
-  switch (trend) {
-    case 'bullish':
-      return '↑';
-    case 'bearish':
-      return '↓';
-    case 'neutral':
-      return '→';
-    default:
-      return '-';
-  }
+  return trend ? TREND_CONFIG[trend].arrow : '-';
 }
 
 function getTrendLabel(trend?: MarketTrend): string {
-  switch (trend) {
-    case 'bullish':
-      return 'Bullish';
-    case 'bearish':
-      return 'Bearish';
-    case 'neutral':
-      return 'Neutral';
-    default:
-      return 'Loading...';
-  }
+  return trend ? TREND_CONFIG[trend].label : 'Loading...';
 }
 
 // ============================================================================
