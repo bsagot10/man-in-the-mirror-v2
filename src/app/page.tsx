@@ -17,104 +17,18 @@ import { DecayOpportunityChart } from '@/components/charts/DecayOpportunityChart
 import { StrategyPerformanceChart } from '@/components/charts/StrategyPerformanceChart';
 import { MarketMetrics } from '@/components/dashboard/MarketMetrics';
 import { EntryScoreDisplay } from '@/components/dashboard/EntryScoreDisplay';
-import type { Signal, VixRegime, MarketTrend } from '@/components/dashboard/MarketMetrics';
+import type { Signal } from '@/components/dashboard/MarketMetrics';
 import type { Position } from '@/types/chart-types';
 import { calculatePositionPnL, getPnlClass, formatPnl, calculateDaysActive } from '@/types/chart-types';
+import { calculatePositionSizing, type PositionSizing } from '@/lib/market-analysis/positionSizing';
+import { determineVixRegime, determineMarketTrend } from '@/lib/market-analysis/vixRegime';
 
 // ============================================================================
 // Helper Functions
 // ============================================================================
 
-function determineVixRegime(vixValue: number): VixRegime {
-  if (vixValue >= 30) return 'Extreme';
-  if (vixValue >= 20) return 'High';
-  if (vixValue >= 15) return 'Moderate';
-  return 'Low';
-}
-
-function determineMarketTrend(qqqChange: number): MarketTrend {
-  if (qqqChange > 0.5) return 'bullish';
-  if (qqqChange < -0.5) return 'bearish';
-  return 'neutral';
-}
-
 function formatTimestamp(timestamp: string): string {
   return new Date(timestamp).toLocaleString();
-}
-
-// ============================================================================
-// Position Sizing Calculator
-// ============================================================================
-
-interface PositionSizing {
-  allocationPercent: number;
-  allocationAmount: number;
-  tqqqShares: number;
-  sqqqShares: number;
-  totalInvestment: number;
-  marginRequired: number;
-  vixRegimeLabel: string;
-}
-
-function calculatePositionSizing(
-  accountSize: number,
-  vixValue: number,
-  tqqqPrice: number,
-  sqqqPrice: number
-): PositionSizing {
-  // VIX regime allocation - aligned with determineVixRegime() thresholds
-  // Higher VIX = higher allocation (more decay opportunity)
-  let allocationPercent: number;
-  let vixRegimeLabel: string;
-
-  if (vixValue >= 30) {
-    allocationPercent = 0.50;
-    vixRegimeLabel = 'Extreme volatility';
-  } else if (vixValue >= 20) {
-    allocationPercent = 0.40;
-    vixRegimeLabel = 'High volatility';
-  } else if (vixValue >= 15) {
-    allocationPercent = 0.35;
-    vixRegimeLabel = 'Moderate volatility';
-  } else {
-    allocationPercent = 0.30;
-    vixRegimeLabel = 'Low volatility';
-  }
-
-  // Guard against invalid inputs
-  if (accountSize <= 0 || tqqqPrice <= 0 || sqqqPrice <= 0) {
-    return {
-      allocationPercent,
-      allocationAmount: 0,
-      tqqqShares: 0,
-      sqqqShares: 0,
-      totalInvestment: 0,
-      marginRequired: 0,
-      vixRegimeLabel,
-    };
-  }
-
-  const allocationAmount = accountSize * allocationPercent;
-
-  // Target 1.25:1 SQQQ:TQQQ share ratio
-  // Math: If sqqqShares = 1.25 × tqqqShares, then:
-  // tqqqShares × tqqqPrice + 1.25 × tqqqShares × sqqqPrice = allocationAmount
-  // tqqqShares = allocationAmount / (tqqqPrice + 1.25 × sqqqPrice)
-  const TARGET_RATIO = 1.25;
-  const tqqqShares = Math.floor(allocationAmount / (tqqqPrice + TARGET_RATIO * sqqqPrice));
-  const sqqqShares = Math.floor(TARGET_RATIO * tqqqShares);
-  const totalInvestment = (tqqqShares * tqqqPrice) + (sqqqShares * sqqqPrice);
-  const marginRequired = totalInvestment * 0.5; // 50% margin requirement
-
-  return {
-    allocationPercent,
-    allocationAmount,
-    tqqqShares,
-    sqqqShares,
-    totalInvestment,
-    marginRequired,
-    vixRegimeLabel,
-  };
 }
 
 // ============================================================================

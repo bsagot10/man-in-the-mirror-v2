@@ -1750,5 +1750,29 @@
     "action": "edit",
     "file": "/Volumes/T7 K/Documents/Graph1/man-in-the-mirror-v2/src/app/api/health/route.ts",
     "domain": "Backend"
+  },
+  {
+    "time": "2026-01-10T08:42:38Z",
+    "action": "edit",
+    "file": "/Volumes/T7 K/Documents/Graph1/man-in-the-mirror-v2/src/lib/market-analysis/positionSizing.ts",
+    "domain": "Backend"
+  },
+  {
+    "time": "2026-01-10T08:42:48Z",
+    "action": "edit",
+    "file": "/Volumes/T7 K/Documents/Graph1/man-in-the-mirror-v2/src/lib/market-analysis/vixRegime.ts",
+    "domain": "Backend"
+  },
+  {
+    "time": "2026-01-10T08:43:09Z",
+    "action": "edit",
+    "file": "/Volumes/T7 K/Documents/Graph1/man-in-the-mirror-v2/src/app/page.tsx",
+    "domain": "Frontend"
+  },
+  {
+    "time": "2026-01-10T08:43:20Z",
+    "action": "edit",
+    "file": "/Volumes/T7 K/Documents/Graph1/man-in-the-mirror-v2/src/app/page.tsx",
+    "domain": "Frontend"
   }
 ]
