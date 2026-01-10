@@ -1,0 +1,10 @@
+{
+  "session_id": "51c2180a-0a15-4da9-9031-aa3f1a174eca",
+  "transcript_path": "/Volumes/T7 K/.claude/projects/-Volumes-T7-K-Documents-Graph1-man-in-the-mirror-v2/51c2180a-0a15-4da9-9031-aa3f1a174eca.jsonl",
+  "hook_event_name": "PreToolUse",
+  "tool_name": "Write",
+  "tool_input": {
+    "file_path": "/Volumes/T7 K/Documents/Graph1/man-in-the-mirror-v2/.claude/auto-memory/dirty-files",
+    "content": ""
+  }
+}

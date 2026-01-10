@@ -5,6 +5,13 @@
  * across the application.
  */
 
+// ============================================================================
+// Constants
+// ============================================================================
+
+/** Threshold for determining neutral P&L (to handle floating point rounding) */
+const PNL_NEUTRAL_THRESHOLD = 0.01;
+
 /**
  * Basic price data point for chart rendering.
  * Used by TQQQ, SQQQ, and other price-based charts.
@@ -82,8 +89,8 @@ export function calculatePositionPnL(position: Position): PositionWithPnL {
  * Get CSS class for P&L value
  */
 export function getPnlClass(pnl: number): 'positive' | 'negative' | 'neutral' {
-  if (pnl > 0.01) return 'positive';
-  if (pnl < -0.01) return 'negative';
+  if (pnl > PNL_NEUTRAL_THRESHOLD) return 'positive';
+  if (pnl < -PNL_NEUTRAL_THRESHOLD) return 'negative';
   return 'neutral';
 }
 

@@ -7,6 +7,9 @@
  * Ported from: backend/utils.py:5-32
  */
 
+/** Minimum data density threshold. If more than 20% of points removed, interpolate back. */
+const MIN_DATA_DENSITY = 0.8;
+
 /**
  * Remove excessive consecutive duplicate values from a list.
  *
@@ -83,8 +86,8 @@ export function processChartData(rawData: number[]): number[] {
 
   const cleaned = removeFlatSegments(rawData);
 
-  // If too many points were removed (>20%), interpolate back to original density
-  if (cleaned.length < rawData.length * 0.8) {
+  // If too many points were removed, interpolate back to original density
+  if (cleaned.length < rawData.length * MIN_DATA_DENSITY) {
     return interpolateArray(cleaned, rawData.length);
   }
 

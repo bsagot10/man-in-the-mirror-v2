@@ -1,0 +1,8 @@
+RED PHASE EVIDENCE - Thu Jan  2 23:54:00 EST 2026
+Test: FRED VIX Data Fetching > should parse FRED CSV format correctly
+Status: FAILED
+Error: AssertionError: expected 'undefined' to be 'function'
+File: __tests__/unit/fredVix.test.ts:12
+
+Implementation target: src/lib/market-data/client.ts
+Required changes: Export fetchFredVixHistorical function

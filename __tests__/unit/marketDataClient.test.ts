@@ -633,11 +633,11 @@ TQQQ.US,2025-01-02,22:00:00,85.50,86.25,84.75,85.80,50000000`),
   });
 
   it('uses AbortController with timeout for Stooq requests', async () => {
-    let capturedSignal: AbortSignal | undefined;
+    let capturedSignal: AbortSignal | null | undefined;
 
     const mockFetch = vi.fn().mockImplementation((url: string, options?: RequestInit) => {
       if (url.includes('stooq.com')) {
-        capturedSignal = options?.signal;
+        capturedSignal = options?.signal ?? null;
         return Promise.resolve({
           ok: true,
           text: () => Promise.resolve(`Symbol,Date,Time,Open,High,Low,Close,Volume
@@ -1473,13 +1473,13 @@ describe('structuredLog', () => {
   });
 
   afterEach(() => {
-    process.env.NODE_ENV = originalEnv;
+    (process.env as { NODE_ENV: string }).NODE_ENV = originalEnv as string;
     vi.restoreAllMocks();
   });
 
   describe('Development Mode', () => {
     beforeEach(() => {
-      process.env.NODE_ENV = 'development';
+      (process.env as { NODE_ENV: string }).NODE_ENV = 'development';
     });
 
     it('logs INFO level with console.log', () => {
@@ -1516,7 +1516,7 @@ describe('structuredLog', () => {
 
   describe('Production Mode', () => {
     beforeEach(() => {
-      process.env.NODE_ENV = 'production';
+      (process.env as { NODE_ENV: string }).NODE_ENV = 'production';
     });
 
     it('outputs JSON format', () => {

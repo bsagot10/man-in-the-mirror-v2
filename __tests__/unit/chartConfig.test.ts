@@ -130,16 +130,16 @@ describe('createTraceConfig', () => {
     expect(trace.x).toEqual(dates);
     expect(trace.y).toEqual(values);
     expect(trace.name).toBe('VIX');
-    expect(trace.line.color).toBe('#F44336');
+    expect(trace.line!.color).toBe('#F44336');
   });
 
   it('applies spline configuration to trace', () => {
     const trace = createTraceConfig(['2024-01-01'], [20], 'Test', '#000');
 
-    expect(trace.line.shape).toBe('spline');
-    expect(trace.line.smoothing).toBe(1.3);
-    expect(trace.line.simplify).toBe(false);
-    expect(trace.line.splinemode).toBe('cubic');
+    expect(trace.line!.shape).toBe('spline');
+    expect(trace.line!.smoothing).toBe(1.3);
+    expect(trace.line!.simplify).toBe(false);
+    expect((trace.line as { splinemode?: string }).splinemode).toBe('cubic');
   });
 
   it('NEVER uses scattergl type', () => {
@@ -152,19 +152,19 @@ describe('createTraceConfig', () => {
 describe('createLayoutConfig', () => {
   it('creates layout with correct title', () => {
     const layout = createLayoutConfig('VIX Index');
-    expect(layout.title.text).toBe('VIX Index');
+    expect((layout.title as { text: string }).text).toBe('VIX Index');
   });
 
   it('applies warm color scheme', () => {
     const layout = createLayoutConfig('Test');
     expect(layout.plot_bgcolor).toBe('rgba(254, 246, 228, 0.3)');
-    expect(layout.font.color).toBe('#5a4a3a');
+    expect(layout.font!.color).toBe('#5a4a3a');
   });
 
   it('includes legend configuration', () => {
     const layout = createLayoutConfig('Test');
     expect(layout.legend).toBeDefined();
-    expect(layout.legend.x).toBe(0.02);
+    expect(layout.legend!.x).toBe(0.02);
   });
 
   it('sets unified hover mode', () => {
@@ -174,7 +174,7 @@ describe('createLayoutConfig', () => {
 
   it('has warm hover label styling', () => {
     const layout = createLayoutConfig('Test');
-    expect(layout.hoverlabel.bgcolor).toBe('rgba(254, 246, 228, 0.95)');
+    expect(layout.hoverlabel!.bgcolor).toBe('rgba(254, 246, 228, 0.95)');
   });
 });
 
