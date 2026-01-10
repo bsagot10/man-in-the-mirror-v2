@@ -51,7 +51,37 @@ export interface EntryScore {
 // Constants
 // ============================================================================
 
+// Signal thresholds
 const ENTRY_THRESHOLD = 70;  // Minimum score to enter position
+const WATCH_THRESHOLD = 50;  // Minimum score to watch
+
+// VIX regime thresholds
+const VIX_EXTREME_THRESHOLD = 30;
+const VIX_HIGH_THRESHOLD = 20;
+
+// Trend thresholds (percentage)
+const TREND_SIDEWAYS_THRESHOLD = 1;
+const TREND_STRONG_THRESHOLD = 2;
+
+// Decay correlation thresholds (percentage)
+const DECAY_STRONG_THRESHOLD = 5;
+const DECAY_MODERATE_THRESHOLD = 3;
+
+// Score values for volatility
+const VOLATILITY_EXTREME_SCORE = 50;
+const VOLATILITY_HIGH_SCORE = 30;
+const VOLATILITY_LOW_SCORE = 0;
+
+// Score values for trend
+const TREND_SIDEWAYS_SCORE = 30;  // Ideal for strategy
+const TREND_STRONG_SCORE = 10;
+const TREND_MIXED_SCORE = 20;
+
+// Score values for decay
+const DECAY_STRONG_SCORE = 30;
+const DECAY_MODERATE_SCORE = 20;
+const DECAY_WEAK_SCORE = 10;
+const DECAY_NONE_SCORE = 0;
 
 // ============================================================================
 // Classification Functions
@@ -59,56 +89,39 @@ const ENTRY_THRESHOLD = 70;  // Minimum score to enter position
 
 /**
  * Classify volatility regime based on VIX value.
- *
- * VIX Thresholds:
- * - >= 30: Extreme volatility (score 50)
- * - >= 20: High volatility (score 30)
- * - < 20: Low volatility (score 0)
  */
 export function classifyVolatility(vixValue: number): VolatilityResult {
-  if (vixValue >= 30) {
-    return { regime: 'Extreme', score: 50 };
+  if (vixValue >= VIX_EXTREME_THRESHOLD) {
+    return { regime: 'Extreme', score: VOLATILITY_EXTREME_SCORE };
   }
-  if (vixValue >= 20) {
-    return { regime: 'High', score: 30 };
+  if (vixValue >= VIX_HIGH_THRESHOLD) {
+    return { regime: 'High', score: VOLATILITY_HIGH_SCORE };
   }
-  return { regime: 'Low', score: 0 };
+  return { regime: 'Low', score: VOLATILITY_LOW_SCORE };
 }
 
 /**
  * Classify market trend using QQQ price change.
- *
- * Trend Thresholds:
- * - |change| < 1%: Sideways/Choppy (score 30) - IDEAL for strategy
- * - change > 2%: Strong Uptrend (score 10)
- * - change < -2%: Strong Downtrend (score 10)
- * - otherwise: Mixed (score 20)
+ * Sideways/choppy markets are ideal for the decay strategy.
  */
 export function classifyTrend(qqqChangePercent: number): TrendResult {
   const absChange = Math.abs(qqqChangePercent);
 
-  if (absChange < 1) {
-    return { regime: 'Sideways/Choppy', score: 30 };
+  if (absChange < TREND_SIDEWAYS_THRESHOLD) {
+    return { regime: 'Sideways/Choppy', score: TREND_SIDEWAYS_SCORE };
   }
-  if (qqqChangePercent > 2) {
-    return { regime: 'Strong Uptrend', score: 10 };
+  if (qqqChangePercent > TREND_STRONG_THRESHOLD) {
+    return { regime: 'Strong Uptrend', score: TREND_STRONG_SCORE };
   }
-  if (qqqChangePercent < -2) {
-    return { regime: 'Strong Downtrend', score: 10 };
+  if (qqqChangePercent < -TREND_STRONG_THRESHOLD) {
+    return { regime: 'Strong Downtrend', score: TREND_STRONG_SCORE };
   }
-  return { regime: 'Mixed', score: 20 };
+  return { regime: 'Mixed', score: TREND_MIXED_SCORE };
 }
 
 /**
  * Calculate decay potential score based on TQQQ/SQQQ inverse correlation.
- *
  * Strong inverse correlation is ideal for the decay strategy.
- *
- * Correlation Strength Thresholds:
- * - > 5%: Strong inverse (score 30)
- * - > 3%: Moderate inverse (score 20)
- * - > 0%: Weak inverse (score 10)
- * - 0% or same direction: No decay opportunity (score 0)
  */
 export function calculateDecayPotential(
   tqqqChangePercent: number,
@@ -120,19 +133,19 @@ export function calculateDecayPotential(
     (tqqqChangePercent < 0 && sqqqChangePercent > 0);
 
   if (!isInverseCorrelation) {
-    return 0;
+    return DECAY_NONE_SCORE;
   }
 
   const correlationStrength =
     Math.abs(tqqqChangePercent) + Math.abs(sqqqChangePercent);
 
-  if (correlationStrength > 5) {
-    return 30;
+  if (correlationStrength > DECAY_STRONG_THRESHOLD) {
+    return DECAY_STRONG_SCORE;
   }
-  if (correlationStrength > 3) {
-    return 20;
+  if (correlationStrength > DECAY_MODERATE_THRESHOLD) {
+    return DECAY_MODERATE_SCORE;
   }
-  return 10;
+  return DECAY_WEAK_SCORE;
 }
 
 // ============================================================================
@@ -169,11 +182,11 @@ export function calculateEntryScore(marketData: MarketData): EntryScore {
   // Calculate total score
   const total = volatility.score + trend.score + decayScore;
 
-  // Determine signal
+  // Determine signal based on total score
   let signal: Signal;
   if (total >= ENTRY_THRESHOLD) {
     signal = 'ENTER';
-  } else if (total >= 50) {
+  } else if (total >= WATCH_THRESHOLD) {
     signal = 'WATCH';
   } else {
     signal = 'WAIT';
