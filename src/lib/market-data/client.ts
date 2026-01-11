@@ -888,6 +888,69 @@ export class MarketDataClient {
   }
 
   /**
+   * Fetch historical prices for TQQQ and SQQQ on a specific date.
+   * Used for calculating position P&L with real historical entry prices.
+   *
+   * @param targetDate - The date to fetch prices for (YYYY-MM-DD format)
+   * @returns Object with tqqq and sqqq closing prices, and the actual trading date
+   */
+  async fetchPricesOnDate(targetDate: string): Promise<{
+    tqqq: number | null;
+    sqqq: number | null;
+    actualDate: string | null;
+  }> {
+    const LOOKBACK_DAYS = 7;
+
+    const target = new Date(targetDate + 'T00:00:00Z');
+    const startDate = new Date(target);
+    startDate.setDate(startDate.getDate() - LOOKBACK_DAYS);
+    const endDate = new Date(target);
+    endDate.setDate(endDate.getDate() + 1);
+
+    const [tqqqData, sqqqData] = await Promise.all([
+      this.fetchSymbolHistory(SYMBOLS.TQQQ, startDate, endDate),
+      this.fetchSymbolHistory(SYMBOLS.SQQQ, startDate, endDate),
+    ]);
+
+    // Find the closest trading day to target date (prefer earlier dates)
+    const findClosestDate = (
+      data: HistoricalDataPoint[],
+      target: string
+    ): HistoricalDataPoint | null => {
+      if (!data || data.length === 0) return null;
+
+      // Try exact match first
+      const exact = data.find((d) => d.date === target);
+      if (exact) return exact;
+
+      // Find closest earlier date
+      const targetTime = new Date(target + 'T00:00:00Z').getTime();
+      let closest: HistoricalDataPoint | null = null;
+      let closestDiff = Infinity;
+
+      for (const point of data) {
+        const pointTime = new Date(point.date + 'T00:00:00Z').getTime();
+        const diff = targetTime - pointTime;
+        if (diff >= 0 && diff < closestDiff) {
+          closestDiff = diff;
+          closest = point;
+        }
+      }
+
+      return closest;
+    };
+
+    const tqqqPrice = findClosestDate(tqqqData, targetDate);
+    const sqqqPrice = findClosestDate(sqqqData, targetDate);
+
+    return {
+      tqqq: tqqqPrice?.close ?? null,
+      sqqq: sqqqPrice?.close ?? null,
+      actualDate: tqqqPrice?.date ?? sqqqPrice?.date ?? null,
+    };
+  }
+
+  /**
    * Fetch historical data for a single symbol.
    * Uses Stooq as primary source (for non-VIX), falls back to Yahoo Finance.
    * VIX: Uses Yahoo Finance only (no Stooq data).

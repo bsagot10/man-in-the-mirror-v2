@@ -11,6 +11,7 @@
 
 import { useState, useEffect, useMemo } from 'react';
 import { useMarketData } from '@/hooks/useMarketData';
+import { useEntryPrices } from '@/hooks/useEntryPrices';
 import { VixChart } from '@/components/charts/VixChart';
 import { TqqqSqqqChart } from '@/components/charts/TqqqSqqqChart';
 import { DecayOpportunityChart } from '@/components/charts/DecayOpportunityChart';
@@ -91,6 +92,16 @@ export default function Dashboard() {
     lastUpdated,
     refresh,
   } = useMarketData();
+
+  // Hook for fetching historical entry prices
+  const {
+    prices: historicalEntryPrices,
+    loading: fetchingHistoricalPrices,
+    error: historicalPricesError,
+    actualDate: historicalActualDate,
+    fetchPrices: fetchHistoricalPrices,
+    setPricesManually: setHistoricalPricesManually,
+  } = useEntryPrices();
 
   const [autoRefresh, setAutoRefresh] = useState(false);
   const [accountSize, setAccountSize] = useState<number>(3000);
@@ -192,24 +203,32 @@ export default function Dashboard() {
     }
   }, []);
 
+  // Fetch historical prices on mount if no stored prices exist
+  // This ensures we have real historical data for the default entry date
+  useEffect(() => {
+    // Only fetch if:
+    // 1. No historical prices from hook yet
+    // 2. No legacy stored prices
+    // 3. We have a position entry date
+    if (!historicalEntryPrices && !storedEntryPrices && positionEntryDate) {
+      fetchHistoricalPrices(positionEntryDate);
+    }
+    // Run only once on mount - don't re-fetch when these deps change
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
   // Update positions when market data changes
+  // Priority: historicalEntryPrices (from hook) > storedEntryPrices (legacy localStorage) > current prices
   useEffect(() => {
     if (marketData && positionActive) {
-      // Use stored entry prices if available, otherwise use current prices
-      // For realistic demo: simulate ~5-10% price movement from entry
-      const tqqqEntry = storedEntryPrices?.tqqq ?? marketData.tqqq.currentPrice * 0.95;
-      const sqqqEntry = storedEntryPrices?.sqqq ?? marketData.sqqq.currentPrice * 1.08;
+      // Use historical entry prices from hook (real data) if available
+      // Fall back to stored prices (legacy), then current prices as last resort
+      const tqqqEntry = historicalEntryPrices?.tqqq ?? storedEntryPrices?.tqqq ?? marketData.tqqq.currentPrice;
+      const sqqqEntry = historicalEntryPrices?.sqqq ?? storedEntryPrices?.sqqq ?? marketData.sqqq.currentPrice;
 
-      // If no stored prices, save them for persistence
-      if (!storedEntryPrices) {
-        const newPrices = { tqqq: tqqqEntry, sqqq: sqqqEntry };
-        setStoredEntryPrices(newPrices);
-        try {
-          localStorage.setItem('entryPrices', JSON.stringify(newPrices));
-          localStorage.setItem('positionEntryDate', positionEntryDate);
-        } catch (error) {
-          console.warn('Could not save to localStorage:', error);
-        }
+      // Sync storedEntryPrices with historicalEntryPrices for consistency
+      if (historicalEntryPrices && !storedEntryPrices) {
+        setStoredEntryPrices(historicalEntryPrices);
       }
 
       // Use stored shares if available, otherwise default to 5
@@ -222,22 +241,23 @@ export default function Dashboard() {
           shares: tqqqShares,
           entryPrice: tqqqEntry,
           currentPrice: marketData.tqqq.currentPrice,
-          entryDate: positionEntryDate,
+          entryDate: historicalActualDate ?? positionEntryDate,
         },
         {
           symbol: 'SQQQ',
           shares: sqqqShares,
           entryPrice: sqqqEntry,
           currentPrice: marketData.sqqq.currentPrice,
-          entryDate: positionEntryDate,
+          entryDate: historicalActualDate ?? positionEntryDate,
         },
       ]);
     } else if (!positionActive) {
       setPositions([]);
     }
-  }, [marketData, positionActive, positionEntryDate, storedEntryPrices, storedShares]);
+  }, [marketData, positionActive, positionEntryDate, historicalEntryPrices, storedEntryPrices, storedShares, historicalActualDate]);
 
   // Handler to save accountSize to localStorage and update positions
+  // This is the "Update" button - enters position NOW at current market prices
   const handleUpdateAccountSize = () => {
     try {
       localStorage.setItem('accountSize', String(accountSize));
@@ -252,6 +272,8 @@ export default function Dashboard() {
         sqqq: marketData.sqqq.currentPrice,
       };
 
+      // Use the hook to set prices manually (persists to localStorage)
+      setHistoricalPricesManually(newEntryPrices);
       setStoredEntryPrices(newEntryPrices);
 
       // Store shares from position sizing recommendations
@@ -265,7 +287,6 @@ export default function Dashboard() {
       setCommittedSizing(positionSizing);
 
       try {
-        localStorage.setItem('entryPrices', JSON.stringify(newEntryPrices));
         localStorage.setItem('positionShares', JSON.stringify(newShares));
         localStorage.setItem('committedSizing', JSON.stringify(positionSizing));
         localStorage.setItem('positionEntryDate', new Date().toISOString().split('T')[0]);
@@ -660,10 +681,12 @@ export default function Dashboard() {
                     onChange={(e) => {
                       const newDate = e.target.value;
                       setPositionEntryDate(newDate);
-                      // Clear stored prices when entry date changes to simulate new position
+                      // Fetch real historical prices for the selected date
+                      // This will automatically update positions via the useEntryPrices hook
+                      fetchHistoricalPrices(newDate);
+                      // Clear legacy stored prices to allow hook to take priority
                       setStoredEntryPrices(null);
                       try {
-                        localStorage.removeItem('entryPrices');
                         localStorage.setItem('positionEntryDate', newDate);
                       } catch (error) {
                         console.warn('Could not save to localStorage:', error);
@@ -672,10 +695,25 @@ export default function Dashboard() {
                     max={new Date().toISOString().split('T')[0]}
                     aria-label="Position entry date"
                   />
+                  {fetchingHistoricalPrices && (
+                    <span className="text-warm-500 text-sm animate-pulse">Loading...</span>
+                  )}
                 </div>
+                {historicalActualDate && historicalActualDate !== positionEntryDate && (
+                  <div className="info-row">
+                    <label>Actual Trading Date</label>
+                    <span className="text-warm-600">{historicalActualDate}</span>
+                  </div>
+                )}
+                {historicalPricesError && (
+                  <div className="info-row">
+                    <label>Error</label>
+                    <span className="text-red-500 text-sm">{historicalPricesError}</span>
+                  </div>
+                )}
                 <div className="info-row">
                   <label>Days Active</label>
-                  <span>{positions.length > 0 ? calculateDaysActive(positionEntryDate) : 0}</span>
+                  <span>{positions.length > 0 ? calculateDaysActive(historicalActualDate ?? positionEntryDate) : 0}</span>
                 </div>
               </div>
 
