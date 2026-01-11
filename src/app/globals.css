@@ -137,7 +137,7 @@ body {
     z-index: 1;  /* Ensure cards stack properly to prevent shadow overlap */
     box-shadow:
       0 4px 12px rgba(139, 111, 71, 0.08),
-      0 1px 0 rgba(255, 255, 255, 0.8) inset;  /* Reduced blur to prevent gap bleed */
+      0 1px 0 rgba(254, 246, 228, 0.8) inset;  /* Reduced blur to prevent gap bleed */
   }
 
   /* Ensure right column card headers have matching rounded corners */
@@ -168,7 +168,7 @@ body {
     border: 1px solid rgba(139, 111, 71, 0.18);
     box-shadow:
       0 8px 32px rgba(139, 111, 71, 0.1),
-      0 1px 0 rgba(255, 255, 255, 0.8) inset;
+      0 1px 0 rgba(254, 246, 228, 0.8) inset;
     transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
   }
 
@@ -177,7 +177,7 @@ body {
     background: rgba(254, 246, 228, 0.85);
     box-shadow:
       0 12px 48px rgba(139, 111, 71, 0.15),
-      0 1px 0 rgba(255, 255, 255, 0.9) inset;
+      0 1px 0 rgba(254, 246, 228, 0.9) inset;
   }
 
   .ghibli-card .card-header {
@@ -210,7 +210,7 @@ body {
     border: 1px solid rgba(139, 111, 71, 0.15);
     box-shadow:
       0 2px 8px rgba(139, 111, 71, 0.08),
-      inset 0 1px 0 rgba(255, 255, 255, 0.6);
+      inset 0 1px 0 rgba(254, 246, 228, 0.6);
     border-radius: 12px;
     backdrop-filter: blur(10px);
     -webkit-backdrop-filter: blur(10px);
@@ -223,7 +223,7 @@ body {
     box-shadow:
       0 4px 12px rgba(0, 0, 0, 0.06),
       0 8px 32px rgba(139, 111, 71, 0.12),
-      inset 0 1px 0 rgba(255, 255, 255, 0.7);
+      inset 0 1px 0 rgba(254, 246, 228, 0.7);
   }
 
   .ghibli-chart .card-header {
@@ -324,7 +324,7 @@ body {
     border-radius: 6px;
     font-size: 0.875rem;
     width: 100px;
-    background: rgba(255, 255, 255, 0.5);
+    background: rgba(247, 232, 208, 0.5);
   }
 
   /* Date inputs need more width to show full year */
@@ -709,7 +709,7 @@ body {
     width: 0;
     height: 0;
     border-radius: 50%;
-    background: rgba(255, 255, 255, 0.3);
+    background: rgba(254, 246, 228, 0.4);
     transform: translate(-50%, -50%);
     transition: width 0.6s, height 0.6s;
   }
