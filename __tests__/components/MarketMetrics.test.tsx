@@ -28,7 +28,7 @@ describe('MarketMetrics Component', () => {
   describe('Entry Score Display', () => {
     it('shows entry score value when provided', () => {
       render(<MarketMetrics entryScore={75} />);
-      expect(screen.getByTestId('entry-score-value')).toHaveTextContent('75/100');
+      expect(screen.getByTestId('entry-score-value')).toHaveTextContent('75/110');
     });
 
     it('shows placeholder when no entry score', () => {

@@ -354,11 +354,27 @@ describe('MarketDataClient', () => {
       expect(result.regime).toBe('High');
     });
 
-    it('classifies VIX < 20 as Low regime', async () => {
+    it('classifies VIX 15-20 as Moderate regime', async () => {
       mockQuote.mockResolvedValue({
         symbol: '^VIX',
-        regularMarketPrice: 15,
-        regularMarketPreviousClose: 14,
+        regularMarketPrice: 17,
+        regularMarketPreviousClose: 16,
+        regularMarketVolume: 0,
+        regularMarketTime: new Date(),
+      });
+
+      mockHistorical.mockResolvedValue([]);
+
+      const result = await client.getVixData();
+
+      expect(result.regime).toBe('Moderate');
+    });
+
+    it('classifies VIX < 15 as Low regime', async () => {
+      mockQuote.mockResolvedValue({
+        symbol: '^VIX',
+        regularMarketPrice: 12,
+        regularMarketPreviousClose: 11,
         regularMarketVolume: 0,
         regularMarketTime: new Date(),
       });

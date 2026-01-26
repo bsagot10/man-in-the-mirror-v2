@@ -7,6 +7,16 @@
  * Ported from: backend/market_analysis.py
  */
 
+import type { Signal } from '@/types/chart-types';
+import {
+  VIX_EXTREME_THRESHOLD,
+  VIX_HIGH_THRESHOLD,
+  VIX_MODERATE_THRESHOLD,
+} from './vixRegime';
+
+// Re-export Signal for consumers that import from entryScore
+export type { Signal } from '@/types/chart-types';
+
 // ============================================================================
 // Types
 // ============================================================================
@@ -23,10 +33,8 @@ export interface MarketData {
   sqqq: SymbolData;
 }
 
-export type Signal = 'ENTER' | 'WATCH' | 'WAIT';
-
 export interface VolatilityResult {
-  regime: 'Extreme' | 'High' | 'Low';
+  regime: 'Extreme' | 'High' | 'Moderate' | 'Low';
   score: number;
 }
 
@@ -55,10 +63,6 @@ export interface EntryScore {
 const ENTRY_THRESHOLD = 70;  // Minimum score to enter position
 const WATCH_THRESHOLD = 50;  // Minimum score to watch
 
-// VIX regime thresholds
-const VIX_EXTREME_THRESHOLD = 30;
-const VIX_HIGH_THRESHOLD = 20;
-
 // Trend thresholds (percentage)
 const TREND_SIDEWAYS_THRESHOLD = 1;
 const TREND_STRONG_THRESHOLD = 2;
@@ -70,6 +74,7 @@ const DECAY_MODERATE_THRESHOLD = 3;
 // Score values for volatility
 const VOLATILITY_EXTREME_SCORE = 50;
 const VOLATILITY_HIGH_SCORE = 30;
+const VOLATILITY_MODERATE_SCORE = 15;
 const VOLATILITY_LOW_SCORE = 0;
 
 // Score values for trend
@@ -89,6 +94,7 @@ const DECAY_NONE_SCORE = 0;
 
 /**
  * Classify volatility regime based on VIX value.
+ * Aligned with vixRegime.ts thresholds: Extreme (30+), High (20+), Moderate (15+), Low (<15)
  */
 export function classifyVolatility(vixValue: number): VolatilityResult {
   if (vixValue >= VIX_EXTREME_THRESHOLD) {
@@ -96,6 +102,9 @@ export function classifyVolatility(vixValue: number): VolatilityResult {
   }
   if (vixValue >= VIX_HIGH_THRESHOLD) {
     return { regime: 'High', score: VOLATILITY_HIGH_SCORE };
+  }
+  if (vixValue >= VIX_MODERATE_THRESHOLD) {
+    return { regime: 'Moderate', score: VOLATILITY_MODERATE_SCORE };
   }
   return { regime: 'Low', score: VOLATILITY_LOW_SCORE };
 }

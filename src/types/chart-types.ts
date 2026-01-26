@@ -6,6 +6,19 @@
  */
 
 // ============================================================================
+// Market Analysis Types
+// ============================================================================
+
+/** Trading signal based on entry score */
+export type Signal = 'ENTER' | 'WATCH' | 'WAIT';
+
+/** VIX regime classification */
+export type VixRegime = 'Low' | 'Moderate' | 'High' | 'Extreme';
+
+/** Market trend direction */
+export type MarketTrend = 'bullish' | 'bearish' | 'neutral';
+
+// ============================================================================
 // Constants
 // ============================================================================
 
@@ -98,8 +111,11 @@ export function getPnlClass(pnl: number): 'positive' | 'negative' | 'neutral' {
  * Format P&L for display
  */
 export function formatPnl(pnl: number): string {
-  const sign = pnl >= 0 ? '+' : '';
-  return `${sign}$${pnl.toFixed(2)}`;
+  if (pnl >= 0) {
+    return `+$${pnl.toFixed(2)}`;
+  }
+  // For negative values, place the minus sign before the dollar sign: -$100.00
+  return `-$${Math.abs(pnl).toFixed(2)}`;
 }
 
 /**

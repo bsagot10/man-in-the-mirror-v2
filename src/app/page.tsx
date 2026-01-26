@@ -18,8 +18,7 @@ import { DecayOpportunityChart } from '@/components/charts/DecayOpportunityChart
 import { StrategyPerformanceChart } from '@/components/charts/StrategyPerformanceChart';
 import { MarketMetrics } from '@/components/dashboard/MarketMetrics';
 import { EntryScoreDisplay } from '@/components/dashboard/EntryScoreDisplay';
-import type { Signal } from '@/components/dashboard/MarketMetrics';
-import type { Position } from '@/types/chart-types';
+import type { Signal, Position } from '@/types/chart-types';
 import { calculatePositionPnL, getPnlClass, formatPnl, calculateDaysActive } from '@/types/chart-types';
 import { calculatePositionSizing, type PositionSizing } from '@/lib/market-analysis/positionSizing';
 import { determineVixRegime, determineMarketTrend } from '@/lib/market-analysis/vixRegime';
@@ -374,9 +373,7 @@ export default function Dashboard() {
   if (error && !marketData) {
     return (
       <div data-testid="dashboard" className="min-h-screen bg-warm-gradient p-6">
-        <a href="#main-content" className="skip-link">
-          Skip to main content
-        </a>
+        {/* Skip link is in layout.tsx - no duplicate needed here */}
         <div data-testid="dashboard-error" className="flex flex-col items-center justify-center h-screen">
           <div className="ghibli-card p-8 text-center">
             <h2 className="text-xl font-semibold text-red-500 mb-4">Error Loading Data</h2>
@@ -397,10 +394,7 @@ export default function Dashboard() {
 
   return (
     <div data-testid="dashboard" className="min-h-screen bg-warm-gradient">
-      {/* Skip Link for Keyboard Navigation */}
-      <a href="#main-content" className="skip-link">
-        Skip to main content
-      </a>
+      {/* Skip link is in layout.tsx - no duplicate needed here */}
 
       {/* Live Region for Screen Reader Announcements */}
       <div
@@ -489,9 +483,11 @@ export default function Dashboard() {
                 </div>
               </div>
               <div className="account-control">
-                <label htmlFor="account-size">Account Status:</label>
-                <div className="control-group">
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.5rem' }}>
+                  <label htmlFor="account-size">Account Status:</label>
                   <span className="status-indicator">Good Standing</span>
+                </div>
+                <div className="control-group">
                   <label htmlFor="account-size" className="sr-only">Account Balance</label>
                   <input
                     id="account-size"
@@ -505,11 +501,15 @@ export default function Dashboard() {
                   <button
                     className="btn-update"
                     onClick={handleUpdateAccountSize}
-                    aria-label="Save account balance"
+                    aria-label="Enter new position at current market prices"
+                    title="Enter new position at current prices"
                   >
-                    Update
+                    Enter Position
                   </button>
                 </div>
+                <p className="helper-text" style={{ fontSize: '0.75rem', color: '#888', marginTop: '0.5rem' }}>
+                  Saves account size and enters a new position at today&apos;s prices
+                </p>
               </div>
             </div>
           </div>
@@ -694,11 +694,15 @@ export default function Dashboard() {
                     }}
                     max={new Date().toISOString().split('T')[0]}
                     aria-label="Position entry date"
+                    title="Change date to see P&L from that entry point"
                   />
                   {fetchingHistoricalPrices && (
-                    <span className="text-warm-500 text-sm animate-pulse">Loading...</span>
+                    <span className="text-warm-500 text-sm animate-pulse">Loading prices...</span>
                   )}
                 </div>
+                <p className="helper-text" style={{ fontSize: '0.7rem', color: '#888', marginTop: '0.25rem', marginBottom: '0.5rem' }}>
+                  Select a past date to calculate P&amp;L from historical entry prices
+                </p>
                 {historicalActualDate && historicalActualDate !== positionEntryDate && (
                   <div className="info-row">
                     <label>Actual Trading Date</label>
@@ -809,7 +813,13 @@ export default function Dashboard() {
             <div className="card-content">
               <div className="implementation-guide">
                 <h4>Current Market Assessment:</h4>
-                <p>⚠️ <strong>WAIT</strong> - Entry score ({entryScore?.total || 40}/100) is below threshold of 70</p>
+                {entryScore?.signal === 'ENTER' ? (
+                  <p>✅ <strong>ENTER</strong> - Entry score ({entryScore.total}/110) meets threshold of 70</p>
+                ) : entryScore?.signal === 'WATCH' ? (
+                  <p>👀 <strong>WATCH</strong> - Entry score ({entryScore.total}/110) approaching threshold of 70</p>
+                ) : (
+                  <p>⚠️ <strong>WAIT</strong> - Entry score ({entryScore?.total ?? 0}/110) is below threshold of 70</p>
+                )}
 
                 <h4>When conditions are favorable:</h4>
                 <ol>
@@ -826,7 +836,7 @@ export default function Dashboard() {
                 <h4>Daily Monitoring Checklist:</h4>
                 <ul>
                   <li>Check if VIX &lt; 20 (exit signal)</li>
-                  <li>Monitor 10% decay threshold</li>
+                  <li>Monitor 5% decay threshold</li>
                   <li>Track 15% max drawdown</li>
                   <li>Watch for 20% profit target</li>
                 </ul>

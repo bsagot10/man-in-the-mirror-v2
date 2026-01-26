@@ -365,9 +365,11 @@ describe('Dashboard Page', () => {
       });
     });
 
-    it('has skip link for keyboard navigation', async () => {
+    // Skip link is now in layout.tsx, not Dashboard component
+    // This is correct - single skip link at layout level, not duplicated in page
+    it('has main content landmark for keyboard navigation', async () => {
       render(<Dashboard />);
-      expect(screen.getByText(/Skip to main content/i)).toBeInTheDocument();
+      expect(screen.getByTestId('main-content')).toBeInTheDocument();
     });
   });
 

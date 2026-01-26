@@ -2,6 +2,12 @@
 // Purpose: Position sizing calculations based on VIX regime
 // Key exports: PositionSizing, calculatePositionSizing
 
+import {
+  VIX_EXTREME_THRESHOLD,
+  VIX_HIGH_THRESHOLD,
+  VIX_MODERATE_THRESHOLD,
+} from './vixRegime';
+
 /**
  * Position Sizing Calculator
  *
@@ -26,11 +32,6 @@ export interface PositionSizing {
 // ============================================================================
 // Constants
 // ============================================================================
-
-// VIX regime thresholds (aligned with determineVixRegime)
-const VIX_EXTREME_THRESHOLD = 30;
-const VIX_HIGH_THRESHOLD = 20;
-const VIX_MODERATE_THRESHOLD = 15;
 
 // Allocation percentages by regime
 const ALLOCATION_EXTREME = 0.50;

@@ -73,7 +73,7 @@ function ScoreBar({ label, score, maxScore, testId, ariaLabel, loading }: ScoreB
   // Use unified max (100) for visual width so all bars are comparable
   // Keep actual maxScore for aria attributes for accessibility
   return (
-    <div className="score-item" aria-label={ariaLabel}>
+    <div className="score-item">
       <span className="score-label">
         {label}
       </span>
@@ -87,9 +87,11 @@ function ScoreBar({ label, score, maxScore, testId, ariaLabel, loading }: ScoreB
           className={`score-fill bg-gradient-to-r from-primary-soft to-primary-green h-full rounded-full transition-all duration-300 ${loading ? 'animate-pulse' : ''}`}
           style={{ width: calculateBarWidth(score, UNIFIED_VISUAL_MAX) }}
           role="progressbar"
+          aria-label={ariaLabel}
           aria-valuenow={score}
           aria-valuemin={0}
           aria-valuemax={maxScore}
+          aria-valuetext={`${score} out of ${maxScore}`}
         />
       </div>
       <span

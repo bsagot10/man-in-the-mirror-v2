@@ -11,13 +11,14 @@
 
 'use client';
 
+import type { Signal, VixRegime, MarketTrend } from '@/types/chart-types';
+
 // ============================================================================
 // Types
 // ============================================================================
 
-export type Signal = 'ENTER' | 'WATCH' | 'WAIT';
-export type VixRegime = 'Low' | 'Moderate' | 'High' | 'Extreme';
-export type MarketTrend = 'bullish' | 'bearish' | 'neutral';
+// Re-export for consumers that import from this component
+export type { Signal, VixRegime, MarketTrend };
 
 export interface MarketMetricsProps {
   entryScore?: number;
@@ -140,7 +141,7 @@ export function MarketMetrics({
               data-testid="entry-score-value"
               className="metric-value text-3xl font-bold text-primary-green mt-1"
             >
-              {loading ? '...' : entryScore !== undefined ? `${entryScore}/100` : '-'}
+              {loading ? '...' : entryScore !== undefined ? `${entryScore}/110` : '-'}
             </div>
             <div
               data-testid="entry-signal"

@@ -392,7 +392,7 @@ describe.skipIf(SKIP_INTEGRATION)('API Route Integration', () => {
       // Should have score components
       expect(typeof data.data.totalScore).toBe('number');
       expect(data.data.totalScore).toBeGreaterThanOrEqual(0);
-      expect(data.data.totalScore).toBeLessThanOrEqual(100);
+      expect(data.data.totalScore).toBeLessThanOrEqual(110);
     });
   });
 });

@@ -40,8 +40,20 @@ describe('classifyVolatility', () => {
     expect(result.score).toBe(30);
   });
 
-  it('classifies VIX < 20 as Low with score 0', () => {
+  it('classifies VIX >= 15 but < 20 as Moderate with score 15', () => {
+    const result = classifyVolatility(17);
+    expect(result.regime).toBe('Moderate');
+    expect(result.score).toBe(15);
+  });
+
+  it('classifies VIX at exactly 15 as Moderate', () => {
     const result = classifyVolatility(15);
+    expect(result.regime).toBe('Moderate');
+    expect(result.score).toBe(15);
+  });
+
+  it('classifies VIX < 15 as Low with score 0', () => {
+    const result = classifyVolatility(14);
     expect(result.regime).toBe('Low');
     expect(result.score).toBe(0);
   });

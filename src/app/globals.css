@@ -206,24 +206,35 @@ body {
 
   /* Chart Card Component */
   .ghibli-chart {
-    background: linear-gradient(135deg, rgba(254, 246, 228, 0.95) 0%, rgba(247, 232, 208, 0.9) 100%);
+    background: linear-gradient(135deg, rgba(254, 246, 228, 0.98) 0%, rgba(247, 232, 208, 0.95) 100%);
     border: 1px solid rgba(139, 111, 71, 0.15);
     box-shadow:
       0 2px 8px rgba(139, 111, 71, 0.08),
       inset 0 1px 0 rgba(254, 246, 228, 0.6);
     border-radius: 12px;
-    backdrop-filter: blur(10px);
-    -webkit-backdrop-filter: blur(10px);
     min-height: 480px;
     transition: transform 0.2s ease, box-shadow 0.2s ease;
+    /* GPU acceleration to prevent scroll flickering */
+    will-change: transform;
+    transform: translateZ(0);
+    backface-visibility: hidden;
+    -webkit-backface-visibility: hidden;
+    contain: layout paint;
   }
 
   .ghibli-chart:hover {
-    transform: translateY(-2px);
+    transform: translateY(-2px) translateZ(0);
     box-shadow:
       0 4px 12px rgba(0, 0, 0, 0.06),
       0 8px 32px rgba(139, 111, 71, 0.12),
       inset 0 1px 0 rgba(254, 246, 228, 0.7);
+  }
+
+  /* Ensure chart content stays visible during scroll */
+  .ghibli-chart .card-content {
+    isolation: isolate;
+    contain: layout paint;
+    overflow: visible;
   }
 
   .ghibli-chart .card-header {
@@ -323,7 +334,7 @@ body {
     border: 1px solid var(--card-border);
     border-radius: 6px;
     font-size: 0.875rem;
-    width: 100px;
+    width: 90px;
     background: rgba(247, 232, 208, 0.5);
   }
 
@@ -347,6 +358,7 @@ body {
     font-weight: 500;
     cursor: pointer;
     transition: background 0.2s;
+    white-space: nowrap;
   }
 
   .btn-update:hover {
@@ -926,7 +938,24 @@ body {
   }
 }
 
-/* Chart smooth rendering */
+/* Chart smooth rendering & scroll flicker prevention */
+.js-plotly-plot {
+  /* Force GPU layer to prevent disappearing during scroll */
+  will-change: transform;
+  transform: translateZ(0);
+  backface-visibility: hidden;
+  -webkit-backface-visibility: hidden;
+  contain: layout style paint;
+}
+
+.js-plotly-plot .main-svg,
+.js-plotly-plot .svg-container {
+  /* Prevent SVG repaint during scroll */
+  will-change: contents;
+  transform: translateZ(0);
+  backface-visibility: hidden;
+}
+
 .js-plotly-plot path.js-line {
   vector-effect: non-scaling-stroke !important;
   stroke-linecap: round !important;
@@ -1035,23 +1064,132 @@ body {
 
 @media (max-width: 480px) {
   .main-title {
-    font-size: 1.5rem;
+    font-size: 1.25rem;
+    line-height: 1.2;
   }
 
   .subtitle {
-    font-size: 0.75rem;
+    font-size: 0.7rem;
   }
 
   .ghibli-chart {
-    min-height: 300px;
+    min-height: 250px;
   }
 
   .header {
     margin: 0.5rem;
-    padding: 1rem;
+    padding: 0.75rem;
   }
 
   .main-content {
     padding: 0 0.5rem 1rem;
+    gap: 0.75rem;
+  }
+
+  /* Compact cards on mobile */
+  .ghibli-card {
+    padding: 0.5rem;
+  }
+
+  .ghibli-card .card-header {
+    padding: 0.5rem;
+  }
+
+  .ghibli-card .card-header h2 {
+    font-size: 0.7rem;
+  }
+
+  .ghibli-card .card-content {
+    padding: 0.5rem;
+  }
+
+  /* Position table mobile optimization */
+  .position-table {
+    font-size: 0.65rem;
+  }
+
+  .position-table th,
+  .position-table td {
+    padding: 4px 3px;
+  }
+
+  /* Score items - horizontal layout on mobile */
+  .score-item {
+    flex-direction: row;
+    align-items: center;
+    gap: 0.5rem;
+  }
+
+  .score-label {
+    font-size: 0.6rem;
+    min-width: 60px;
+  }
+
+  .score-value {
+    font-size: 0.75rem;
+    min-width: 24px;
+  }
+
+  /* Info items more compact */
+  .info-item .label {
+    font-size: 0.65rem;
+  }
+
+  .info-item .value {
+    font-size: 1rem;
+  }
+
+  /* Metric boxes more compact */
+  .metric-box {
+    padding: 0.5rem;
+  }
+
+  .metric-value {
+    font-size: 1.5rem;
+  }
+
+  .metric-status {
+    font-size: 0.7rem;
+  }
+
+  /* Recommendations list */
+  .recommendations {
+    font-size: 0.7rem;
+  }
+
+  .recommendations li {
+    padding: 0.25rem 0;
+  }
+
+  /* Info rows */
+  .info-row {
+    font-size: 0.7rem;
+    padding: 0.25rem 0;
+  }
+
+  /* Buttons */
+  .btn-control {
+    padding: 0.4rem 0.75rem;
+    font-size: 0.7rem;
+  }
+}
+
+/* Extra small devices (< 360px) */
+@media (max-width: 360px) {
+  .main-title {
+    font-size: 1.1rem;
+  }
+
+  .position-table {
+    font-size: 0.6rem;
+  }
+
+  .score-label {
+    font-size: 0.55rem;
+    min-width: 50px;
+  }
+
+  .metric-value {
+    font-size: 1.25rem;
   }
 }

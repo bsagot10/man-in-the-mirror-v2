@@ -1,0 +1,42 @@
+go over your work and use chromedevtools to go over the frontend when it comes to checking your work and testing and use tmux sessions and do this plan:
+
+Plan: Real Historical Entry Prices for Position P&L
+
+Problem Statement
+Currently, entry prices are simulated instead of using actual historical data:
+
+// src/app/page.tsx lines 200-201
+const tqqqEntry = storedEntryPrices?.tqqq ?? marketData.tqqq.currentPrice * 0.95;  // FAKE
+const sqqqEntry = storedEntryPrices?.sqqq ?? marketData.sqqq.currentPrice * 1.08;  // FAKE
+
+This creates misleading P&L (+5% TQQQ, -8% SQQQ) that doesn't reflect reality.
+
+Solution
+When user sets an entry date, fetch actual closing prices for TQQQ/SQQQ on that date.
+
+---
+Critical Clarifications (from double-check review)
+
+Two Distinct Use Cases
+1. "Update" Button = Enter position NOW at current market prices (unchanged)
+2. Date Picker = Simulate "what if I entered on this past date" (NEW feature)
+
+Persistence Flow
+After fetching historical prices, they MUST be saved to:
+- storedEntryPrices state
+- localStorage.entryPrices
+
+This ensures prices survive page refresh.
+
+---
+Files to Create
+- src/app/api/price-on-date/route.ts - API endpoint for historical price lookup
+- src/hooks/useEntryPrices.ts - Hook for fetching/managing entry prices
+- __tests__/unit/useEntryPrices.test.ts - Hook tests
+- __tests__/unit/priceOnDateRoute.test.ts - API route tests
+
+Files to Modify
+- src/app/page.tsx - Integrate useEntryPrices hook
+- src/lib/market-data/client.ts - Add fetchPricesOnDate method
+
+Please ultrathink and use sub agents in parallel when needed.

@@ -271,6 +271,16 @@ describe('EntryScoreDisplay Component', () => {
       expect(screen.getByLabelText(/trend score/i)).toBeInTheDocument();
       expect(screen.getByLabelText(/decay potential score/i)).toBeInTheDocument();
     });
+
+    it('includes aria-valuetext for screen reader announcements', () => {
+      render(<EntryScoreDisplay volatilityScore={25} trendScore={15} decayScore={10} />);
+      const volatilityBar = screen.getByTestId('volatility-bar');
+      const trendBar = screen.getByTestId('trend-bar');
+      const decayBar = screen.getByTestId('decay-bar');
+      expect(volatilityBar).toHaveAttribute('aria-valuetext', '25 out of 50');
+      expect(trendBar).toHaveAttribute('aria-valuetext', '15 out of 30');
+      expect(decayBar).toHaveAttribute('aria-valuetext', '10 out of 30');
+    });
   });
 
   describe('Full Score Example', () => {
