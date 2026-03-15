@@ -59,6 +59,19 @@ const TREND_CONFIG: Record<MarketTrend, { color: string; arrow: string; label: s
 
 const DEFAULT_COLOR = 'text-warm-600';
 
+// Depth elevation per signal state — full class name strings for Tailwind scanner
+const SIGNAL_DEPTH: Record<Signal, string> = {
+  ENTER: 'shadow-depth-3',
+  WATCH: 'shadow-depth-2',
+  WAIT:  'shadow-depth-1',
+};
+
+const SIGNAL_BG: Record<Signal, string> = {
+  ENTER: 'bg-[var(--glass-float)]',
+  WATCH: '',   // uses default var(--glass-raised) from .ghibli-card
+  WAIT:  'bg-[var(--glass-base)]',
+};
+
 // ============================================================================
 // Helper Functions
 // ============================================================================
@@ -98,9 +111,18 @@ export function MarketMetrics({
   isStale,
   cacheAge,
 }: MarketMetricsProps) {
+  // VIX Extreme takes priority over signal depth (market panic = best entry)
+  const cardDepthClass = vixRegime === 'Extreme'
+    ? 'shadow-depth-extreme'
+    : signal ? SIGNAL_DEPTH[signal] : 'shadow-depth-1';
+
+  const cardBgClass = vixRegime === 'Extreme'
+    ? ''   // Extreme glow handles emphasis; don't also shift background
+    : signal ? SIGNAL_BG[signal] : '';
+
   if (error) {
     return (
-      <div data-testid="market-metrics" className="ghibli-card">
+      <div data-testid="market-metrics" className={`ghibli-card ${cardDepthClass} ${cardBgClass}`.trim()}>
         <div className="card-header">
           <h2 className="text-lg font-semibold text-warm-800">📈 MARKET CONDITIONS</h2>
         </div>
@@ -114,7 +136,7 @@ export function MarketMetrics({
   }
 
   return (
-    <div data-testid="market-metrics" className="ghibli-card">
+    <div data-testid="market-metrics" className={`ghibli-card ${cardDepthClass} ${cardBgClass}`.trim()}>
       <div className="card-header">
         <h2 className="text-lg font-semibold text-warm-800">📈 MARKET CONDITIONS</h2>
         {isStale && cacheAge !== undefined && (

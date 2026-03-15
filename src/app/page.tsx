@@ -22,6 +22,8 @@ import type { Signal, Position } from '@/types/chart-types';
 import { calculatePositionPnL, getPnlClass, formatPnl, calculateDaysActive } from '@/types/chart-types';
 import { calculatePositionSizing, type PositionSizing } from '@/lib/market-analysis/positionSizing';
 import { determineVixRegime, determineMarketTrend } from '@/lib/market-analysis/vixRegime';
+import { RefreshIcon } from '@/components/icons/RefreshIcon';
+import { AutoRefreshIcon } from '@/components/icons/AutoRefreshIcon';
 
 // ============================================================================
 // Helper Functions
@@ -29,51 +31,6 @@ import { determineVixRegime, determineMarketTrend } from '@/lib/market-analysis/
 
 function formatTimestamp(timestamp: string): string {
   return new Date(timestamp).toLocaleString();
-}
-
-// ============================================================================
-// Icon Components
-// ============================================================================
-
-function RefreshIcon() {
-  return (
-    <svg
-      className="icon-svg"
-      viewBox="0 0 24 24"
-      fill="none"
-      stroke="currentColor"
-      strokeWidth="2"
-      strokeLinecap="round"
-      strokeLinejoin="round"
-      aria-hidden="true"
-      focusable="false"
-    >
-      <path d="M21 2v6h-6" />
-      <path d="M3 12a9 9 0 0 1 15-6.7L21 8" />
-      <path d="M3 22v-6h6" />
-      <path d="M21 12a9 9 0 0 1-15 6.7L3 16" />
-    </svg>
-  );
-}
-
-function AutoRefreshIcon() {
-  return (
-    <svg
-      className="icon-svg"
-      viewBox="0 0 24 24"
-      fill="none"
-      stroke="currentColor"
-      strokeWidth="2"
-      strokeLinecap="round"
-      strokeLinejoin="round"
-      aria-hidden="true"
-      focusable="false"
-    >
-      <polyline points="1 4 1 10 7 10" />
-      <polyline points="23 20 23 14 17 14" />
-      <path d="M20.49 9A9 9 0 0 0 5.64 5.64L1 10m22 4l-4.64 4.36A9 9 0 0 1 3.51 15" />
-    </svg>
-  );
 }
 
 // ============================================================================
@@ -166,14 +123,7 @@ export default function Dashboard() {
         }
       }
 
-      // Load stored entry prices
-      const storedPrices = localStorage.getItem('entryPrices');
-      if (storedPrices) {
-        const parsed = JSON.parse(storedPrices);
-        if (parsed.tqqq && parsed.sqqq) {
-          setStoredEntryPrices(parsed);
-        }
-      }
+      // Entry prices are loaded by useEntryPrices hook (single owner of 'entryPrices' key)
 
       // Load stored entry date
       const storedDate = localStorage.getItem('positionEntryDate');
@@ -355,6 +305,14 @@ export default function Dashboard() {
   const positionSizing = useMemo(() => {
     return calculatePositionSizing(accountSize, vixValue, tqqqPrice, sqqqPrice);
   }, [accountSize, vixValue, tqqqPrice, sqqqPrice]);
+
+  // Aggregate portfolio P&L metrics (derived from positions)
+  const portfolioMetrics = useMemo(() => {
+    const totalPnl = positions.reduce((sum, pos) => sum + calculatePositionPnL(pos).pnl, 0);
+    const totalCost = positions.reduce((sum, pos) => sum + pos.entryPrice * pos.shares, 0);
+    const returnPct = totalCost > 0 ? (totalPnl / totalCost) * 100 : 0;
+    return { totalPnl, returnPct };
+  }, [positions]);
 
   // Initialize committedSizing from positionSizing if not already set
   // This ensures Position Sizing Recommendations shows stable values on first load
@@ -555,11 +513,15 @@ export default function Dashboard() {
               <div className="performance-grid">
                 <div className="performance-item">
                   <label>Total P&L</label>
-                  <span className="value positive">$0.00</span>
+                  <span className={`value ${getPnlClass(portfolioMetrics.totalPnl)}`}>
+                    {formatPnl(portfolioMetrics.totalPnl)}
+                  </span>
                 </div>
                 <div className="performance-item">
                   <label>Return</label>
-                  <span className="value positive">0.00%</span>
+                  <span className={`value ${getPnlClass(portfolioMetrics.totalPnl)}`}>
+                    {portfolioMetrics.totalPnl >= 0 ? '+' : ''}{portfolioMetrics.returnPct.toFixed(2)}%
+                  </span>
                 </div>
               </div>
             </div>
@@ -783,6 +745,7 @@ export default function Dashboard() {
             decayScore={entryScore?.decayScore}
             totalScore={entryScore?.total}
             loading={loading && !entryScore}
+            elevated={(entryScore?.total ?? 0) >= 70}
           />
 
           {/* Position Sizing Recommendations - uses committed sizing (only updates on Update click) */}

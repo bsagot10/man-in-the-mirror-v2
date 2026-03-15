@@ -55,6 +55,13 @@ const config: Config = {
           'sans-serif',
         ],
       },
+      boxShadow: {
+        'depth-1':       'inset 0 1px 0 rgba(255,255,255,0.15), 0 2px 4px rgba(0,0,0,0.12)',
+        'depth-2':       'inset 0 1px 0 rgba(255,255,255,0.20), 0 4px 8px rgba(0,0,0,0.18)',
+        'depth-3':       'inset 0 1px 0 rgba(255,255,255,0.25), 0 8px 16px rgba(0,0,0,0.22)',
+        'depth-inset':   'inset 0 2px 4px rgba(0,0,0,0.15), inset 0 -1px 0 rgba(255,255,255,0.1)',
+        'depth-extreme': 'inset 0 1px 0 rgba(255,100,100,0.2), 0 8px 20px rgba(200,0,0,0.15)',
+      },
       backgroundImage: {
         'warm-gradient': 'linear-gradient(135deg, #fef6e4 0%, #f7e8d0 100%)',
       },

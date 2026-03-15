@@ -23,6 +23,7 @@ export interface EntryScoreDisplayProps {
   totalScore?: number;
   loading?: boolean;
   error?: string;
+  elevated?: boolean;
 }
 
 // ============================================================================
@@ -115,13 +116,14 @@ export function EntryScoreDisplay({
   totalScore,
   loading = false,
   error,
+  elevated = false,
 }: EntryScoreDisplayProps) {
   // Calculate total if not provided
   const calculatedTotal = totalScore ?? volatilityScore + trendScore + decayScore;
 
   if (error) {
     return (
-      <div data-testid="entry-score-display" className="ghibli-card">
+      <div data-testid="entry-score-display" className={`ghibli-card ${elevated ? 'shadow-depth-3 bg-[var(--glass-float)]' : ''}`.trim()}>
         <div className="card-header">
           <h2 className="text-lg font-semibold text-warm-800">📊 ENTRY SCORE CALCULATION</h2>
         </div>
@@ -133,7 +135,7 @@ export function EntryScoreDisplay({
   }
 
   return (
-    <div data-testid="entry-score-display" className="ghibli-card">
+    <div data-testid="entry-score-display" className={`ghibli-card ${elevated ? 'shadow-depth-3 bg-[var(--glass-float)]' : ''}`.trim()}>
       <div className="card-header">
         <h2 className="text-lg font-semibold text-warm-800">📊 ENTRY SCORE CALCULATION</h2>
       </div>

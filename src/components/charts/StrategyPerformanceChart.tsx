@@ -26,12 +26,12 @@ import {
 } from '@/lib/chart-config';
 // processChartData intentionally not used - raw values needed for P&L precision
 
-// Dynamic import for Plotly to avoid SSR issues
-const Plot = dynamic(() => import('react-plotly.js'), {
+// Dynamic import — uses partial bundle (~1MB vs ~3.5MB full plotly.js)
+const Plot = dynamic(() => import('@/lib/PlotlyPartial'), {
   ssr: false,
   loading: () => (
-    <div className="h-[480px] flex items-center justify-center">
-      Loading chart...
+    <div className="h-[480px] flex items-center justify-center animate-pulse">
+      <span className="text-warm-500 text-sm">Loading chart...</span>
     </div>
   ),
 });

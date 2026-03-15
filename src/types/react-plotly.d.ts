@@ -21,3 +21,17 @@ declare module 'react-plotly.js' {
 
   export default class Plot extends Component<PlotParams> {}
 }
+
+declare module 'react-plotly.js/factory' {
+  import { Component } from 'react';
+  import type { PlotParams } from 'react-plotly.js';
+
+  export default function createPlotlyComponent(
+    plotly: object
+  ): new (props: PlotParams) => Component<PlotParams>;
+}
+
+declare module 'plotly.js-basic-dist' {
+  const Plotly: object;
+  export default Plotly;
+}
