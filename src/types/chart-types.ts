@@ -49,6 +49,14 @@ export interface Position {
   entryDate: string;
 }
 
+/**
+ * Position with calculated P&L values (internal use only)
+ */
+interface PositionWithPnL extends Position {
+  pnl: number;
+  pnlPercent: number;
+}
+
 // ============================================================================
 // Position Utility Functions
 // ============================================================================
