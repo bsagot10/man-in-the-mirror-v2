@@ -11,7 +11,6 @@
 
 'use client';
 
-import dynamic from 'next/dynamic';
 import { useMemo } from 'react';
 import type { Data, Layout, Config, Shape } from 'plotly.js';
 import {
@@ -23,16 +22,7 @@ import {
   PLOT_CONFIG,
 } from '@/lib/chart-config';
 import { processChartData } from '@/lib/data-processing/removeFlatSegments';
-
-// Dynamic import — uses partial bundle (~1MB vs ~3.5MB full plotly.js)
-const Plot = dynamic(() => import('@/lib/PlotlyPartial'), {
-  ssr: false,
-  loading: () => (
-    <div className="h-[480px] flex items-center justify-center animate-pulse">
-      <span className="text-warm-500 text-sm">Loading chart...</span>
-    </div>
-  ),
-});
+import { BaseChart } from './BaseChart';
 
 // ============================================================================
 // Types
@@ -195,61 +185,21 @@ export function VixChart({
     };
   }, [title, height, shapes]);
 
-  // Plot configuration (not a hook, but kept with other config)
-  const config: Partial<Config> = {
-    ...PLOT_CONFIG,
-  };
-
-  // === Early returns after all hooks ===
-
-  // Loading state
-  if (loading) {
-    return (
-      <div className={`h-[${height}px] flex items-center justify-center ${className}`}>
-        <div className="text-warm-brown animate-pulse">Loading VIX data...</div>
-      </div>
-    );
-  }
-
-  // Error state
-  if (error) {
-    return (
-      <div className={`h-[${height}px] flex items-center justify-center ${className}`}>
-        <div className="text-red-500">{error}</div>
-      </div>
-    );
-  }
-
-  // Empty state - show message when no data
-  if (!data || data.length === 0) {
-    return (
-      <div className={className} data-testid="vix-chart" style={{ width: '100%', height: height }}>
-        <div className="ghibli-card" style={{ height: '100%' }}>
-          <div className="card-header">VIX Index</div>
-          <div className="card-content" style={{
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-            height: 'calc(100% - 40px)',
-            color: 'var(--text-secondary)'
-          }}>
-            No data available
-          </div>
-        </div>
-      </div>
-    );
-  }
+  const config: Partial<Config> = { ...PLOT_CONFIG };
 
   return (
-    <div className={className} style={{ width: '100%', height: height }}>
-      <Plot
-        data={traces}
-        layout={layout}
-        config={config}
-        useResizeHandler={true}
-        style={{ width: '100%', height: '100%' }}
-      />
-    </div>
+    <BaseChart
+      traces={traces}
+      layout={layout}
+      config={config}
+      height={height}
+      className={className}
+      loading={loading}
+      loadingMessage="Loading VIX data..."
+      error={error}
+      isEmpty={!data || data.length === 0}
+      emptyMessage="No data available"
+    />
   );
 }
 

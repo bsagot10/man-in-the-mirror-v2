@@ -12,7 +12,6 @@
 
 'use client';
 
-import dynamic from 'next/dynamic';
 import { useMemo } from 'react';
 import type { Data, Config, Shape } from 'plotly.js';
 import type { PriceDataPoint } from '@/types/chart-types';
@@ -25,16 +24,7 @@ import {
   PLOT_CONFIG,
 } from '@/lib/chart-config';
 // processChartData intentionally not used - raw values needed for P&L precision
-
-// Dynamic import — uses partial bundle (~1MB vs ~3.5MB full plotly.js)
-const Plot = dynamic(() => import('@/lib/PlotlyPartial'), {
-  ssr: false,
-  loading: () => (
-    <div className="h-[480px] flex items-center justify-center animate-pulse">
-      <span className="text-warm-500 text-sm">Loading chart...</span>
-    </div>
-  ),
-});
+import { BaseChart } from './BaseChart';
 
 // ============================================================================
 // Types
@@ -296,66 +286,24 @@ export function StrategyPerformanceChart({
     };
   }, [title, height, shapes, annotations, dates]);
 
-  // Plot configuration
-  const config: Partial<Config> = {
-    ...PLOT_CONFIG,
-  };
-
-  // Loading state
-  if (loading) {
-    return (
-      <div
-        className={`h-[${height}px] flex items-center justify-center ${className}`}
-        role="status"
-        aria-label="Loading performance data"
-      >
-        <div className="text-warm-brown animate-pulse">
-          Loading performance data...
-        </div>
-      </div>
-    );
-  }
-
-  // Error state
-  if (error) {
-    return (
-      <div
-        className={`h-[${height}px] flex items-center justify-center ${className}`}
-        role="alert"
-      >
-        <div className="text-red-500">{error}</div>
-      </div>
-    );
-  }
-
-  // Empty state
-  if (dates.length === 0) {
-    return (
-      <div
-        className={`h-[${height}px] flex items-center justify-center ${className}`}
-        aria-label="No performance data available"
-      >
-        <div className="text-warm-600">No performance data available</div>
-      </div>
-    );
-  }
+  const config: Partial<Config> = { ...PLOT_CONFIG };
 
   return (
-    <div
+    <BaseChart
+      traces={traces}
+      layout={layout}
+      config={config}
+      height={height}
       className={className}
-      style={{ width: '100%', height: height }}
+      loading={loading}
+      loadingMessage="Loading performance data..."
+      error={error}
+      isEmpty={dates.length === 0}
+      emptyMessage="No performance data available"
       role="img"
-      aria-label="Strategy performance chart showing cumulative profit and loss"
+      ariaLabel="Strategy performance chart showing cumulative profit and loss"
       tabIndex={0}
-    >
-      <Plot
-        data={traces}
-        layout={layout}
-        config={config}
-        useResizeHandler={true}
-        style={{ width: '100%', height: '100%' }}
-      />
-    </div>
+    />
   );
 }
 
