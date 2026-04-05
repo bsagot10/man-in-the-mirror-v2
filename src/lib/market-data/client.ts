@@ -94,12 +94,12 @@ export enum LogLevel {
   ERROR = 'ERROR',
 }
 
-export interface LogContext {
+interface LogContext {
   component: string;
   action: string;
   symbol?: string;
   duration?: number;
-  source?: 'stooq' | 'yahoo' | 'cache';
+  source?: 'stooq' | 'yahoo' | 'cache' | 'fred';
   errorType?: string;
   [key: string]: unknown;
 }
@@ -617,7 +617,7 @@ export async function fetchFredVixHistorical(days: number = 30): Promise<Histori
       component: 'MarketDataClient',
       action: 'fetchFredVixHistorical',
       symbol: '^VIX',
-      source: 'cache', // Using 'cache' since 'fred' isn't in the type union
+      source: 'fred',
       dataPoints: result.length,
     });
 
@@ -700,11 +700,17 @@ export function calculateChangePercent(current: number, previous: number): numbe
   return Math.round(change * 100) / 100; // Round to 2 decimal places
 }
 
+// Yahoo Finance quote response fields we use
+interface YahooQuoteResponse {
+  regularMarketPrice?: number;
+  regularMarketPreviousClose?: number;
+  regularMarketVolume?: number;
+}
+
 /**
  * Format raw Yahoo Finance quote data into our SymbolQuote structure.
  */
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-export function formatSymbolData(quote: any): SymbolQuote {
+export function formatSymbolData(quote: YahooQuoteResponse): SymbolQuote {
   const currentPrice = quote.regularMarketPrice ?? 0;
   const previousClose = quote.regularMarketPreviousClose ?? currentPrice;
   const change = Math.round((currentPrice - previousClose) * 100) / 100;
@@ -1155,7 +1161,7 @@ export class MarketDataClient {
             component: 'MarketDataClient',
             action: 'fetchSymbolHistory',
             symbol,
-            source: 'cache', // Using 'cache' since 'fred' isn't in type union
+            source: 'fred',
             dataPoints: fredData.length,
           });
           return fredData;

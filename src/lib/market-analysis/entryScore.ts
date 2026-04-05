@@ -14,9 +14,6 @@ import {
   VIX_MODERATE_THRESHOLD,
 } from './vixRegime';
 
-// Re-export Signal for consumers that import from entryScore
-export type { Signal } from '@/types/chart-types';
-
 // ============================================================================
 // Types
 // ============================================================================
@@ -33,12 +30,12 @@ export interface MarketData {
   sqqq: SymbolData;
 }
 
-export interface VolatilityResult {
+interface VolatilityResult {
   regime: 'Extreme' | 'High' | 'Moderate' | 'Low';
   score: number;
 }
 
-export interface TrendResult {
+interface TrendResult {
   regime: 'Sideways/Choppy' | 'Strong Uptrend' | 'Strong Downtrend' | 'Mixed';
   score: number;
 }

@@ -17,10 +17,7 @@ import type { Signal, VixRegime, MarketTrend } from '@/types/chart-types';
 // Types
 // ============================================================================
 
-// Re-export for consumers that import from this component
-export type { Signal, VixRegime, MarketTrend };
-
-export interface MarketMetricsProps {
+interface MarketMetricsProps {
   entryScore?: number;
   signal?: Signal;
   vixValue?: number;

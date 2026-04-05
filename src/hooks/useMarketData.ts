@@ -16,7 +16,7 @@ import { useState, useEffect, useCallback } from 'react';
 // Types
 // ============================================================================
 
-export interface SymbolData {
+interface SymbolData {
   currentPrice: number;
   changePercent: number;
   previousClose: number;
@@ -25,14 +25,14 @@ export interface SymbolData {
   timestamp: string;
 }
 
-export interface MarketData {
+interface MarketData {
   vix: SymbolData;
   qqq: SymbolData;
   tqqq: SymbolData;
   sqqq: SymbolData;
 }
 
-export interface HistoricalDataPoint {
+interface HistoricalDataPoint {
   date: string;
   open: number;
   high: number;
@@ -41,13 +41,13 @@ export interface HistoricalDataPoint {
   volume: number;
 }
 
-export interface HistoricalData {
+interface HistoricalData {
   vix: HistoricalDataPoint[];
   tqqq: HistoricalDataPoint[];
   sqqq: HistoricalDataPoint[];
 }
 
-export interface EntryScore {
+interface EntryScore {
   total: number;
   signal: 'ENTER' | 'WATCH' | 'WAIT';
   volatilityRegime: string;
@@ -56,7 +56,7 @@ export interface EntryScore {
   decayScore: number;
 }
 
-export interface UseMarketDataReturn {
+interface UseMarketDataReturn {
   marketData: MarketData | null;
   historicalData: HistoricalData | null;
   entryScore: EntryScore | null;

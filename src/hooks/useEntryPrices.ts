@@ -23,12 +23,12 @@ import { useState, useEffect, useCallback } from 'react';
 // Types
 // ============================================================================
 
-export interface EntryPrices {
+interface EntryPrices {
   tqqq: number;
   sqqq: number;
 }
 
-export interface UseEntryPricesReturn {
+interface UseEntryPricesReturn {
   prices: EntryPrices | null;
   loading: boolean;
   error: string | null;

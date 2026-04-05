@@ -34,27 +34,6 @@ export interface PriceDataPoint {
   close: number;
 }
 
-/**
- * Decay data point combining price and decay metrics.
- * Used by DecayOpportunityChart to visualize ETF decay over time.
- */
-export interface DecayDataPoint {
-  date: string;
-  decay: number;
-  tqqqPrice: number;
-  sqqqPrice: number;
-}
-
-/**
- * Performance data point for strategy backtesting.
- * Used by StrategyPerformanceChart to visualize P&L over time.
- */
-export interface PerformanceDataPoint {
-  date: string;
-  cumulativePnL: number;
-  dailyReturn: number;
-}
-
 // ============================================================================
 // Position Types
 // ============================================================================
@@ -68,14 +47,6 @@ export interface Position {
   entryPrice: number;
   currentPrice: number;
   entryDate: string;
-}
-
-/**
- * Position with calculated P&L values
- */
-export interface PositionWithPnL extends Position {
-  pnl: number;
-  pnlPercent: number;
 }
 
 // ============================================================================
