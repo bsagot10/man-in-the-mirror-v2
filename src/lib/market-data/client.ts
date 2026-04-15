@@ -207,7 +207,7 @@ export function classifyError(error: unknown): {
 // Types
 // ============================================================================
 
-export interface SymbolQuote {
+interface SymbolQuote {
   currentPrice: number;
   previousClose: number;
   change: number;
@@ -236,13 +236,13 @@ export interface HistoricalDataPoint {
   volume: number;
 }
 
-export interface HistoricalData {
+interface HistoricalData {
   vix: HistoricalDataPoint[];
   tqqq: HistoricalDataPoint[];
   sqqq: HistoricalDataPoint[];
 }
 
-export interface VixData {
+interface VixData {
   current: number;
   average30d: number;
   regime: 'Low' | 'Moderate' | 'High' | 'Extreme';
@@ -998,6 +998,7 @@ export class MarketDataClient {
    * @param targetDate - The date to fetch prices for (YYYY-MM-DD format)
    * @returns Object with tqqq and sqqq closing prices, and the actual trading date
    */
+  // fallow-ignore-next-line unused-class-members
   async fetchPricesOnDate(targetDate: string): Promise<{
     tqqq: number | null;
     sqqq: number | null;

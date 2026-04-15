@@ -28,7 +28,7 @@ import { BaseChart } from './BaseChart';
 // Types
 // ============================================================================
 
-export interface VixDataPoint {
+interface VixDataPoint {
   date: string;
   close: number;
 }
@@ -203,4 +203,5 @@ export function VixChart({
   );
 }
 
+// fallow-ignore-next-line unused-exports
 export default VixChart;

@@ -307,4 +307,5 @@ export function StrategyPerformanceChart({
   );
 }
 
+// fallow-ignore-next-line unused-exports
 export default StrategyPerformanceChart;

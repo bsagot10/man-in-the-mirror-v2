@@ -231,7 +231,7 @@ export function createYAxisConfig(
 }
 
 // ============================================================================
-// Type Exports
+// Type Exports (internal)
 // ============================================================================
 
-export type ChartColor = keyof typeof CHART_COLORS;
+type ChartColor = keyof typeof CHART_COLORS;

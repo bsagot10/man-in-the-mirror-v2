@@ -256,4 +256,5 @@ export function DecayOpportunityChart({
   );
 }
 
+// fallow-ignore-next-line unused-exports
 export default DecayOpportunityChart;

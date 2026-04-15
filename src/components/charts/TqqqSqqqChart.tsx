@@ -28,7 +28,7 @@ import { BaseChart } from './BaseChart';
 // Types
 // ============================================================================
 
-export interface PriceDataPoint {
+interface PriceDataPoint {
   date: string;
   close: number;
 }
@@ -218,4 +218,5 @@ export function TqqqSqqqChart({
   );
 }
 
+// fallow-ignore-next-line unused-exports
 export default TqqqSqqqChart;

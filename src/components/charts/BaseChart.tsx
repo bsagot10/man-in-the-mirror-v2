@@ -138,4 +138,5 @@ export function BaseChart({
   );
 }
 
+// fallow-ignore-next-line unused-exports
 export default BaseChart;
