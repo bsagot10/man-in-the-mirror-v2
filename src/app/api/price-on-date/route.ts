@@ -21,7 +21,7 @@
  */
 
 import { NextRequest, NextResponse } from 'next/server';
-import { marketDataClient } from '@/lib/market-data/client';
+import { marketDataClient, structuredLog, LogLevel } from '@/lib/market-data/client';
 
 /**
  * Validates a date string is in YYYY-MM-DD format and is a valid date
@@ -110,7 +110,12 @@ export async function GET(request: NextRequest) {
 
     return NextResponse.json(response);
   } catch (error) {
-    console.error('Error fetching price on date:', error);
+    structuredLog(LogLevel.ERROR, 'Error fetching price on date', {
+      component: 'PriceOnDateRoute',
+      action: 'GET',
+      errorType: error instanceof Error ? error.name : 'Unknown',
+      errorMessage: error instanceof Error ? error.message : String(error),
+    });
 
     return NextResponse.json(
       {

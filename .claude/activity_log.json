@@ -2140,5 +2140,419 @@
     "action": "edit",
     "file": "/Volumes/T7 K/Documents/Graph1/man-in-the-mirror-v2/src/lib/market-data/client.ts",
     "domain": "Frontend"
+  },
+  {
+    "time": "2026-03-11T07:28:28Z",
+    "action": "edit",
+    "file": "/Volumes/T7 K/Documents/Graph1/man-in-the-mirror-v2/src/lib/market-data/client.ts",
+    "domain": "Frontend"
+  },
+  {
+    "time": "2026-03-11T07:30:34Z",
+    "action": "edit",
+    "file": "/Volumes/T7 K/Documents/Graph1/man-in-the-mirror-v2/src/lib/market-data/client.ts",
+    "domain": "Frontend"
+  },
+  {
+    "time": "2026-03-11T07:30:39Z",
+    "action": "edit",
+    "file": "/Volumes/T7 K/Documents/Graph1/man-in-the-mirror-v2/src/lib/market-data/client.ts",
+    "domain": "Frontend"
+  },
+  {
+    "time": "2026-03-11T07:30:45Z",
+    "action": "edit",
+    "file": "/Volumes/T7 K/Documents/Graph1/man-in-the-mirror-v2/src/lib/market-data/client.ts",
+    "domain": "Frontend"
+  },
+  {
+    "time": "2026-03-11T07:30:50Z",
+    "action": "edit",
+    "file": "/Volumes/T7 K/Documents/Graph1/man-in-the-mirror-v2/src/app/api/price-on-date/route.ts",
+    "domain": "Backend"
+  },
+  {
+    "time": "2026-03-11T07:30:55Z",
+    "action": "edit",
+    "file": "/Volumes/T7 K/Documents/Graph1/man-in-the-mirror-v2/src/app/api/price-on-date/route.ts",
+    "domain": "Backend"
+  },
+  {
+    "time": "2026-03-11T07:31:00Z",
+    "action": "edit",
+    "file": "/Volumes/T7 K/Documents/Graph1/man-in-the-mirror-v2/src/app/api/market-data/route.ts",
+    "domain": "Backend"
+  },
+  {
+    "time": "2026-03-11T07:31:04Z",
+    "action": "edit",
+    "file": "/Volumes/T7 K/Documents/Graph1/man-in-the-mirror-v2/src/app/api/market-data/route.ts",
+    "domain": "Backend"
+  },
+  {
+    "time": "2026-03-11T07:31:09Z",
+    "action": "edit",
+    "file": "/Volumes/T7 K/Documents/Graph1/man-in-the-mirror-v2/src/app/api/entry-score/route.ts",
+    "domain": "Backend"
+  },
+  {
+    "time": "2026-03-11T07:31:13Z",
+    "action": "edit",
+    "file": "/Volumes/T7 K/Documents/Graph1/man-in-the-mirror-v2/src/app/api/entry-score/route.ts",
+    "domain": "Backend"
+  },
+  {
+    "time": "2026-03-11T07:31:26Z",
+    "action": "edit",
+    "file": "/Volumes/T7 K/Documents/Graph1/man-in-the-mirror-v2/src/app/page.tsx",
+    "domain": "Frontend"
+  },
+  {
+    "time": "2026-03-11T07:31:39Z",
+    "action": "edit",
+    "file": "/Volumes/T7 K/Documents/Graph1/man-in-the-mirror-v2/src/app/page.tsx",
+    "domain": "Frontend"
+  },
+  {
+    "time": "2026-03-11T07:31:49Z",
+    "action": "edit",
+    "file": "/Volumes/T7 K/Documents/Graph1/man-in-the-mirror-v2/__tests__/pages/Dashboard.test.tsx",
+    "domain": "Frontend"
+  },
+  {
+    "time": "2026-03-11T07:31:57Z",
+    "action": "edit",
+    "file": "/Volumes/T7 K/Documents/Graph1/man-in-the-mirror-v2/__tests__/pages/Dashboard.test.tsx",
+    "domain": "Frontend"
+  },
+  {
+    "time": "2026-03-11T07:32:01Z",
+    "action": "edit",
+    "file": "/Volumes/T7 K/Documents/Graph1/man-in-the-mirror-v2/__tests__/pages/Dashboard.test.tsx",
+    "domain": "Frontend"
+  },
+  {
+    "time": "2026-03-11T07:32:08Z",
+    "action": "edit",
+    "file": "/Volumes/T7 K/Documents/Graph1/man-in-the-mirror-v2/__tests__/pages/Dashboard.test.tsx",
+    "domain": "Frontend"
+  },
+  {
+    "time": "2026-03-11T07:32:26Z",
+    "action": "edit",
+    "file": "/Volumes/T7 K/Documents/Graph1/man-in-the-mirror-v2/__tests__/api/marketData.test.ts",
+    "domain": "Backend"
+  },
+  {
+    "time": "2026-03-11T07:32:29Z",
+    "action": "edit",
+    "file": "/Volumes/T7 K/Documents/Graph1/man-in-the-mirror-v2/__tests__/api/marketData.test.ts",
+    "domain": "Backend"
+  },
+  {
+    "time": "2026-03-11T07:32:36Z",
+    "action": "edit",
+    "file": "/Volumes/T7 K/Documents/Graph1/man-in-the-mirror-v2/__tests__/api/marketData.test.ts",
+    "domain": "Backend"
+  },
+  {
+    "time": "2026-03-11T07:32:40Z",
+    "action": "edit",
+    "file": "/Volumes/T7 K/Documents/Graph1/man-in-the-mirror-v2/__tests__/api/marketData.test.ts",
+    "domain": "Backend"
+  },
+  {
+    "time": "2026-03-11T07:32:43Z",
+    "action": "edit",
+    "file": "/Volumes/T7 K/Documents/Graph1/man-in-the-mirror-v2/__tests__/api/marketData.test.ts",
+    "domain": "Backend"
+  },
+  {
+    "time": "2026-03-11T07:32:59Z",
+    "action": "edit",
+    "file": "/Volumes/T7 K/Documents/Graph1/man-in-the-mirror-v2/__tests__/api/marketData.test.ts",
+    "domain": "Backend"
+  },
+  {
+    "time": "2026-03-11T07:33:03Z",
+    "action": "edit",
+    "file": "/Volumes/T7 K/Documents/Graph1/man-in-the-mirror-v2/__tests__/api/marketData.test.ts",
+    "domain": "Backend"
+  },
+  {
+    "time": "2026-03-11T07:33:19Z",
+    "action": "edit",
+    "file": "/Volumes/T7 K/Documents/Graph1/man-in-the-mirror-v2/__tests__/api/marketData.test.ts",
+    "domain": "Backend"
+  },
+  {
+    "time": "2026-03-11T07:34:12Z",
+    "action": "edit",
+    "file": "/Volumes/T7 K/Documents/Graph1/man-in-the-mirror-v2/__tests__/pages/Dashboard.test.tsx",
+    "domain": "Frontend"
+  },
+  {
+    "time": "2026-03-11T07:39:29Z",
+    "action": "edit",
+    "file": "/Volumes/T7 K/Documents/Graph1/man-in-the-mirror-v2/src/app/page.tsx",
+    "domain": "Frontend"
+  },
+  {
+    "time": "2026-03-11T07:39:37Z",
+    "action": "edit",
+    "file": "/Volumes/T7 K/Documents/Graph1/man-in-the-mirror-v2/src/app/page.tsx",
+    "domain": "Frontend"
+  },
+  {
+    "time": "2026-03-11T07:40:41Z",
+    "action": "edit",
+    "file": "/Volumes/T7 K/Documents/Graph1/man-in-the-mirror-v2/__tests__/api/marketData.test.ts",
+    "domain": "Backend"
+  },
+  {
+    "time": "2026-03-11T07:40:45Z",
+    "action": "edit",
+    "file": "/Volumes/T7 K/Documents/Graph1/man-in-the-mirror-v2/__tests__/api/marketData.test.ts",
+    "domain": "Backend"
+  },
+  {
+    "time": "2026-03-11T07:40:51Z",
+    "action": "edit",
+    "file": "/Volumes/T7 K/Documents/Graph1/man-in-the-mirror-v2/__tests__/api/marketData.test.ts",
+    "domain": "Backend"
+  },
+  {
+    "time": "2026-03-11T07:40:55Z",
+    "action": "edit",
+    "file": "/Volumes/T7 K/Documents/Graph1/man-in-the-mirror-v2/__tests__/api/marketData.test.ts",
+    "domain": "Backend"
+  },
+  {
+    "time": "2026-03-11T07:40:59Z",
+    "action": "edit",
+    "file": "/Volumes/T7 K/Documents/Graph1/man-in-the-mirror-v2/__tests__/api/marketData.test.ts",
+    "domain": "Backend"
+  },
+  {
+    "time": "2026-03-11T07:41:02Z",
+    "action": "edit",
+    "file": "/Volumes/T7 K/Documents/Graph1/man-in-the-mirror-v2/__tests__/api/marketData.test.ts",
+    "domain": "Backend"
+  },
+  {
+    "time": "2026-03-11T07:41:07Z",
+    "action": "edit",
+    "file": "/Volumes/T7 K/Documents/Graph1/man-in-the-mirror-v2/__tests__/api/marketData.test.ts",
+    "domain": "Backend"
+  },
+  {
+    "time": "2026-03-11T07:41:11Z",
+    "action": "edit",
+    "file": "/Volumes/T7 K/Documents/Graph1/man-in-the-mirror-v2/__tests__/api/marketData.test.ts",
+    "domain": "Backend"
+  },
+  {
+    "time": "2026-03-11T07:41:16Z",
+    "action": "edit",
+    "file": "/Volumes/T7 K/Documents/Graph1/man-in-the-mirror-v2/__tests__/api/marketData.test.ts",
+    "domain": "Backend"
+  },
+  {
+    "time": "2026-03-15T08:23:38Z",
+    "action": "edit",
+    "file": "/Volumes/T7 K/Documents/Graph1/man-in-the-mirror-v2/tailwind.config.ts",
+    "domain": "Backend"
+  },
+  {
+    "time": "2026-03-15T08:23:47Z",
+    "action": "edit",
+    "file": "/Volumes/T7 K/Documents/Graph1/man-in-the-mirror-v2/src/app/globals.css",
+    "domain": "Frontend"
+  },
+  {
+    "time": "2026-03-15T08:23:57Z",
+    "action": "edit",
+    "file": "/Volumes/T7 K/Documents/Graph1/man-in-the-mirror-v2/src/app/globals.css",
+    "domain": "Frontend"
+  },
+  {
+    "time": "2026-03-15T08:24:03Z",
+    "action": "edit",
+    "file": "/Volumes/T7 K/Documents/Graph1/man-in-the-mirror-v2/src/app/globals.css",
+    "domain": "Frontend"
+  },
+  {
+    "time": "2026-03-15T08:24:13Z",
+    "action": "edit",
+    "file": "/Volumes/T7 K/Documents/Graph1/man-in-the-mirror-v2/src/app/globals.css",
+    "domain": "Frontend"
+  },
+  {
+    "time": "2026-03-15T08:24:21Z",
+    "action": "edit",
+    "file": "/Volumes/T7 K/Documents/Graph1/man-in-the-mirror-v2/src/app/globals.css",
+    "domain": "Frontend"
+  },
+  {
+    "time": "2026-03-15T08:24:26Z",
+    "action": "edit",
+    "file": "/Volumes/T7 K/Documents/Graph1/man-in-the-mirror-v2/src/app/globals.css",
+    "domain": "Frontend"
+  },
+  {
+    "time": "2026-03-15T08:24:31Z",
+    "action": "edit",
+    "file": "/Volumes/T7 K/Documents/Graph1/man-in-the-mirror-v2/src/app/globals.css",
+    "domain": "Frontend"
+  },
+  {
+    "time": "2026-03-15T08:24:35Z",
+    "action": "edit",
+    "file": "/Volumes/T7 K/Documents/Graph1/man-in-the-mirror-v2/src/app/globals.css",
+    "domain": "Frontend"
+  },
+  {
+    "time": "2026-03-15T08:24:38Z",
+    "action": "edit",
+    "file": "/Volumes/T7 K/Documents/Graph1/man-in-the-mirror-v2/src/app/globals.css",
+    "domain": "Frontend"
+  },
+  {
+    "time": "2026-03-15T08:24:42Z",
+    "action": "edit",
+    "file": "/Volumes/T7 K/Documents/Graph1/man-in-the-mirror-v2/src/app/globals.css",
+    "domain": "Frontend"
+  },
+  {
+    "time": "2026-03-15T08:24:46Z",
+    "action": "edit",
+    "file": "/Volumes/T7 K/Documents/Graph1/man-in-the-mirror-v2/src/app/globals.css",
+    "domain": "Frontend"
+  },
+  {
+    "time": "2026-03-15T08:24:50Z",
+    "action": "edit",
+    "file": "/Volumes/T7 K/Documents/Graph1/man-in-the-mirror-v2/src/app/globals.css",
+    "domain": "Frontend"
+  },
+  {
+    "time": "2026-03-15T08:24:57Z",
+    "action": "edit",
+    "file": "/Volumes/T7 K/Documents/Graph1/man-in-the-mirror-v2/src/app/globals.css",
+    "domain": "Frontend"
+  },
+  {
+    "time": "2026-03-15T08:25:05Z",
+    "action": "edit",
+    "file": "/Volumes/T7 K/Documents/Graph1/man-in-the-mirror-v2/src/components/dashboard/MarketMetrics.tsx",
+    "domain": "Frontend"
+  },
+  {
+    "time": "2026-03-15T08:25:15Z",
+    "action": "edit",
+    "file": "/Volumes/T7 K/Documents/Graph1/man-in-the-mirror-v2/src/components/dashboard/MarketMetrics.tsx",
+    "domain": "Frontend"
+  },
+  {
+    "time": "2026-03-15T08:25:20Z",
+    "action": "edit",
+    "file": "/Volumes/T7 K/Documents/Graph1/man-in-the-mirror-v2/src/components/dashboard/EntryScoreDisplay.tsx",
+    "domain": "Frontend"
+  },
+  {
+    "time": "2026-03-15T08:25:24Z",
+    "action": "edit",
+    "file": "/Volumes/T7 K/Documents/Graph1/man-in-the-mirror-v2/src/components/dashboard/EntryScoreDisplay.tsx",
+    "domain": "Frontend"
+  },
+  {
+    "time": "2026-03-15T08:25:32Z",
+    "action": "edit",
+    "file": "/Volumes/T7 K/Documents/Graph1/man-in-the-mirror-v2/src/components/dashboard/EntryScoreDisplay.tsx",
+    "domain": "Frontend"
+  },
+  {
+    "time": "2026-03-15T08:25:37Z",
+    "action": "edit",
+    "file": "/Volumes/T7 K/Documents/Graph1/man-in-the-mirror-v2/src/app/page.tsx",
+    "domain": "Frontend"
+  },
+  {
+    "time": "2026-03-15T08:25:53Z",
+    "action": "edit",
+    "file": "/Volumes/T7 K/Documents/Graph1/man-in-the-mirror-v2/src/components/icons/RefreshIcon.tsx",
+    "domain": "Frontend"
+  },
+  {
+    "time": "2026-03-15T08:25:54Z",
+    "action": "edit",
+    "file": "/Volumes/T7 K/Documents/Graph1/man-in-the-mirror-v2/src/components/icons/AutoRefreshIcon.tsx",
+    "domain": "Frontend"
+  },
+  {
+    "time": "2026-03-15T08:26:00Z",
+    "action": "edit",
+    "file": "/Volumes/T7 K/Documents/Graph1/man-in-the-mirror-v2/src/app/page.tsx",
+    "domain": "Frontend"
+  },
+  {
+    "time": "2026-03-15T08:26:08Z",
+    "action": "edit",
+    "file": "/Volumes/T7 K/Documents/Graph1/man-in-the-mirror-v2/src/app/page.tsx",
+    "domain": "Frontend"
+  },
+  {
+    "time": "2026-03-15T09:38:35Z",
+    "action": "edit",
+    "file": "/Volumes/T7 K/Documents/Graph1/man-in-the-mirror-v2/src/lib/PlotlyPartial.tsx",
+    "domain": "Frontend"
+  },
+  {
+    "time": "2026-03-15T09:38:48Z",
+    "action": "edit",
+    "file": "/Volumes/T7 K/Documents/Graph1/man-in-the-mirror-v2/src/components/charts/VixChart.tsx",
+    "domain": "Frontend"
+  },
+  {
+    "time": "2026-03-15T09:39:08Z",
+    "action": "edit",
+    "file": "/Volumes/T7 K/Documents/Graph1/man-in-the-mirror-v2/src/components/charts/TqqqSqqqChart.tsx",
+    "domain": "Frontend"
+  },
+  {
+    "time": "2026-03-15T09:39:11Z",
+    "action": "edit",
+    "file": "/Volumes/T7 K/Documents/Graph1/man-in-the-mirror-v2/src/components/charts/DecayOpportunityChart.tsx",
+    "domain": "Frontend"
+  },
+  {
+    "time": "2026-03-15T09:39:13Z",
+    "action": "edit",
+    "file": "/Volumes/T7 K/Documents/Graph1/man-in-the-mirror-v2/src/components/charts/StrategyPerformanceChart.tsx",
+    "domain": "Frontend"
+  },
+  {
+    "time": "2026-03-15T09:39:43Z",
+    "action": "edit",
+    "file": "/Volumes/T7 K/Documents/Graph1/man-in-the-mirror-v2/src/types/react-plotly.d.ts",
+    "domain": "Frontend"
+  },
+  {
+    "time": "2026-03-15T09:39:53Z",
+    "action": "edit",
+    "file": "/Volumes/T7 K/Documents/Graph1/man-in-the-mirror-v2/src/lib/PlotlyPartial.tsx",
+    "domain": "Frontend"
+  },
+  {
+    "time": "2026-03-15T09:52:21Z",
+    "action": "edit",
+    "file": "/Volumes/T7 K/Documents/Graph1/man-in-the-mirror-v2/src/components/dashboard/MarketMetrics.tsx",
+    "domain": "Frontend"
+  },
+  {
+    "time": "2026-03-15T09:52:28Z",
+    "action": "edit",
+    "file": "/Volumes/T7 K/Documents/Graph1/man-in-the-mirror-v2/src/components/dashboard/EntryScoreDisplay.tsx",
+    "domain": "Frontend"
   }
 ]

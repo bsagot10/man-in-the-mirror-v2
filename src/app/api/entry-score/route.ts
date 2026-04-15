@@ -7,12 +7,11 @@
  * Ported from: Flask /api/market-data endpoint (entry score portion)
  */
 
-import { NextRequest, NextResponse } from 'next/server';
-import { marketDataClient } from '@/lib/market-data/client';
+import { NextResponse } from 'next/server';
+import { marketDataClient, structuredLog, LogLevel } from '@/lib/market-data/client';
 import { calculateEntryScore } from '@/lib/market-analysis/entryScore';
 
-// eslint-disable-next-line @typescript-eslint/no-unused-vars
-export async function GET(_request: NextRequest) {
+export async function GET() {
   try {
     // Fetch current market data
     const marketData = await marketDataClient.fetchCurrentData();
@@ -48,7 +47,12 @@ export async function GET(_request: NextRequest) {
 
     return NextResponse.json(response);
   } catch (error) {
-    console.error('Error calculating entry score:', error);
+    structuredLog(LogLevel.ERROR, 'Error calculating entry score', {
+      component: 'EntryScoreRoute',
+      action: 'GET',
+      errorType: error instanceof Error ? error.name : 'Unknown',
+      errorMessage: error instanceof Error ? error.message : String(error),
+    });
 
     return NextResponse.json(
       {

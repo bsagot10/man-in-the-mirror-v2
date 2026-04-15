@@ -84,8 +84,7 @@ describe('Market Data API', () => {
 
   describe('GET /api/market-data', () => {
     it('returns success response with market data', async () => {
-      const request = new NextRequest('http://localhost:3000/api/market-data');
-      const response = await getMarketData(request);
+      const response = await getMarketData();
       const data = await response.json();
 
       expect(response.status).toBe(200);
@@ -93,8 +92,7 @@ describe('Market Data API', () => {
     });
 
     it('includes all required symbols', async () => {
-      const request = new NextRequest('http://localhost:3000/api/market-data');
-      const response = await getMarketData(request);
+      const response = await getMarketData();
       const data = await response.json();
 
       expect(data.marketData).toBeDefined();
@@ -105,16 +103,14 @@ describe('Market Data API', () => {
     });
 
     it('includes timestamp', async () => {
-      const request = new NextRequest('http://localhost:3000/api/market-data');
-      const response = await getMarketData(request);
+      const response = await getMarketData();
       const data = await response.json();
 
       expect(data.timestamp).toBeDefined();
     });
 
     it('includes market open status', async () => {
-      const request = new NextRequest('http://localhost:3000/api/market-data');
-      const response = await getMarketData(request);
+      const response = await getMarketData();
       const data = await response.json();
 
       expect(data.marketOpen).toBeDefined();
@@ -180,8 +176,7 @@ describe('Market Data API', () => {
 
   describe('GET /api/entry-score', () => {
     it('returns success response with entry score', async () => {
-      const request = new NextRequest('http://localhost:3000/api/entry-score');
-      const response = await getEntryScore(request);
+      const response = await getEntryScore();
       const data = await response.json();
 
       expect(response.status).toBe(200);
@@ -189,8 +184,7 @@ describe('Market Data API', () => {
     });
 
     it('includes entry score total', async () => {
-      const request = new NextRequest('http://localhost:3000/api/entry-score');
-      const response = await getEntryScore(request);
+      const response = await getEntryScore();
       const data = await response.json();
 
       expect(data.entryScore).toBeDefined();
@@ -198,8 +192,7 @@ describe('Market Data API', () => {
     });
 
     it('includes signal (ENTER/WATCH/WAIT)', async () => {
-      const request = new NextRequest('http://localhost:3000/api/entry-score');
-      const response = await getEntryScore(request);
+      const response = await getEntryScore();
       const data = await response.json();
 
       expect(data.entryScore.signal).toBeDefined();
@@ -207,16 +200,14 @@ describe('Market Data API', () => {
     });
 
     it('includes volatility regime', async () => {
-      const request = new NextRequest('http://localhost:3000/api/entry-score');
-      const response = await getEntryScore(request);
+      const response = await getEntryScore();
       const data = await response.json();
 
       expect(data.entryScore.volatilityRegime).toBeDefined();
     });
 
     it('includes all score components', async () => {
-      const request = new NextRequest('http://localhost:3000/api/entry-score');
-      const response = await getEntryScore(request);
+      const response = await getEntryScore();
       const data = await response.json();
 
       expect(data.entryScore.volatilityScore).toBeDefined();
@@ -228,8 +219,7 @@ describe('Market Data API', () => {
 
 describe('API Response Format', () => {
   it('market-data response matches expected schema', async () => {
-    const request = new NextRequest('http://localhost:3000/api/market-data');
-    const response = await getMarketData(request);
+    const response = await getMarketData();
     const data = await response.json();
 
     // Check response structure
@@ -249,8 +239,7 @@ describe('API Response Format', () => {
   });
 
   it('entry-score response matches expected schema', async () => {
-    const request = new NextRequest('http://localhost:3000/api/entry-score');
-    const response = await getEntryScore(request);
+    const response = await getEntryScore();
     const data = await response.json();
 
     expect(data).toHaveProperty('success');

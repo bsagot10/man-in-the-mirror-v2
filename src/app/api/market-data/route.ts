@@ -7,11 +7,10 @@
  * Ported from: Flask /api/market-data endpoint
  */
 
-import { NextRequest, NextResponse } from 'next/server';
-import { marketDataClient } from '@/lib/market-data/client';
+import { NextResponse } from 'next/server';
+import { marketDataClient, structuredLog, LogLevel } from '@/lib/market-data/client';
 
-// eslint-disable-next-line @typescript-eslint/no-unused-vars
-export async function GET(_request: NextRequest) {
+export async function GET() {
   try {
     // Fetch current market data
     const marketData = await marketDataClient.fetchCurrentData();
@@ -29,7 +28,12 @@ export async function GET(_request: NextRequest) {
 
     return NextResponse.json(response);
   } catch (error) {
-    console.error('Error fetching market data:', error);
+    structuredLog(LogLevel.ERROR, 'Error fetching market data', {
+      component: 'MarketDataRoute',
+      action: 'GET',
+      errorType: error instanceof Error ? error.name : 'Unknown',
+      errorMessage: error instanceof Error ? error.message : String(error),
+    });
 
     return NextResponse.json(
       {

@@ -112,16 +112,20 @@ describe('Dashboard Page', () => {
     it('renders the main dashboard container', async () => {
       render(<Dashboard />);
       expect(screen.getByTestId('dashboard')).toBeInTheDocument();
+      // Wait for async state updates to settle (avoids act() warnings)
+      await waitFor(() => expect(mockFetch).toHaveBeenCalled());
     });
 
     it('renders the header with title', async () => {
       render(<Dashboard />);
       expect(screen.getByText(/Man in the Mirror Strategy/i)).toBeInTheDocument();
+      await waitFor(() => expect(mockFetch).toHaveBeenCalled());
     });
 
     it('renders the subtitle', async () => {
       render(<Dashboard />);
       expect(screen.getByText(/Leveraged ETF Decay Strategy/i)).toBeInTheDocument();
+      await waitFor(() => expect(mockFetch).toHaveBeenCalled());
     });
 
     it('renders the three-column layout', async () => {
@@ -129,6 +133,7 @@ describe('Dashboard Page', () => {
       expect(screen.getByTestId('left-column')).toBeInTheDocument();
       expect(screen.getByTestId('center-column')).toBeInTheDocument();
       expect(screen.getByTestId('right-column')).toBeInTheDocument();
+      await waitFor(() => expect(mockFetch).toHaveBeenCalled());
     });
   });
 
@@ -136,6 +141,7 @@ describe('Dashboard Page', () => {
     it('renders refresh button', async () => {
       render(<Dashboard />);
       expect(screen.getByRole('button', { name: /Refresh market data/i })).toBeInTheDocument();
+      await waitFor(() => expect(mockFetch).toHaveBeenCalled());
     });
 
     it('renders last update timestamp', async () => {
@@ -322,6 +328,7 @@ describe('Dashboard Page', () => {
       render(<Dashboard />);
       const dashboard = screen.getByTestId('dashboard');
       expect(dashboard).toHaveClass('bg-warm-gradient');
+      await waitFor(() => expect(mockFetch).toHaveBeenCalled());
     });
 
     it('applies ghibli-card class to cards', async () => {
@@ -338,9 +345,8 @@ describe('Dashboard Page', () => {
     it('has responsive grid classes', async () => {
       render(<Dashboard />);
       const mainContent = screen.getByTestId('main-content');
-      // Grid styling is applied via custom CSS class 'main-content' in globals.css
-      // (not Tailwind utility classes)
       expect(mainContent).toHaveClass('main-content');
+      await waitFor(() => expect(mockFetch).toHaveBeenCalled());
     });
   });
 
@@ -350,6 +356,7 @@ describe('Dashboard Page', () => {
 
       const h1 = screen.getByRole('heading', { level: 1 });
       expect(h1).toHaveTextContent(/Man in the Mirror Strategy/i);
+      await waitFor(() => expect(mockFetch).toHaveBeenCalled());
     });
 
     it('has accessible chart labels', async () => {
@@ -370,6 +377,7 @@ describe('Dashboard Page', () => {
     it('has main content landmark for keyboard navigation', async () => {
       render(<Dashboard />);
       expect(screen.getByTestId('main-content')).toBeInTheDocument();
+      await waitFor(() => expect(mockFetch).toHaveBeenCalled());
     });
   });
 

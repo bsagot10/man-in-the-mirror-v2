@@ -72,8 +72,16 @@
     "/Volumes/T7 K/Documents/Graph1/man-in-the-mirror-v2/__tests__/unit/chartTypes.test.ts",
     "/Volumes/T7 K/Documents/Graph1/man-in-the-mirror-v2/src/app/globals.css",
     "/Volumes/T7 K/.claude/plugins/installed_plugins.json",
-    "/Volumes/T7 K/.claude/plans/streamed-napping-rocket.md"
+    "/Volumes/T7 K/.claude/plans/streamed-napping-rocket.md",
+    "/Volumes/T7 K/Documents/Graph1/man-in-the-mirror-v2/src/app/api/price-on-date/route.ts",
+    "/Volumes/T7 K/Documents/Graph1/man-in-the-mirror-v2/tailwind.config.ts",
+    "/Volumes/T7 K/Documents/Graph1/man-in-the-mirror-v2/src/components/icons/RefreshIcon.tsx",
+    "/Volumes/T7 K/Documents/Graph1/man-in-the-mirror-v2/src/components/icons/AutoRefreshIcon.tsx",
+    "/Volumes/T7 K/Documents/Graph1/man-in-the-mirror-v2/src/lib/PlotlyPartial.tsx",
+    "/Volumes/T7 K/Documents/Graph1/man-in-the-mirror-v2/src/components/charts/DecayOpportunityChart.tsx",
+    "/Volumes/T7 K/Documents/Graph1/man-in-the-mirror-v2/src/components/charts/StrategyPerformanceChart.tsx",
+    "/Volumes/T7 K/Documents/Graph1/man-in-the-mirror-v2/src/types/react-plotly.d.ts"
   ],
   "start_time": "2025-12-27T22:33:43Z",
-  "last_activity": "2026-01-13T02:16:41Z"
+  "last_activity": "2026-03-15T09:52:28Z"
 }
