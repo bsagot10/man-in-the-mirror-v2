@@ -9,7 +9,7 @@
 
 'use client';
 
-import { useState, useEffect, useMemo, useCallback } from 'react';
+import { useState, useEffect, useMemo, useCallback, useRef } from 'react';
 import { useMarketData } from '@/hooks/useMarketData';
 import { useEntryPrices } from '@/hooks/useEntryPrices';
 import type { Position } from '@/types/chart-types';
@@ -120,6 +120,8 @@ export function useDashboard(): DashboardState {
   const [storedShares, setStoredShares] = useState<{ tqqq: number; sqqq: number } | null>(null);
   const [committedSizing, setCommittedSizing] = useState<PositionSizing | null>(null);
   const [positions, setPositions] = useState<Position[]>([]);
+  const [hydrated, setHydrated] = useState(false);
+  const initialFetchAttempted = useRef(false);
 
   // Auto-refresh effect
   useEffect(() => {
@@ -152,15 +154,24 @@ export function useDashboard(): DashboardState {
       const storedSizing = localStorage.getItem('committedSizing');
       if (storedSizing) setCommittedSizing(JSON.parse(storedSizing));
     } catch (e) { console.warn('Could not access localStorage:', e); }
+    finally { setHydrated(true); }
   }, []);
 
-  // Fetch historical prices on mount if missing
+  // Fetch initial historical prices once, AFTER hydration completes.
+  // Why: useEntryPrices and useDashboard each hydrate from localStorage in effects.
+  // Firing on a raw `[]`-dep effect captured the pre-hydration default date,
+  // causing a stale fetch (and stale error) against the wrong day.
   useEffect(() => {
-    if (!historicalEntryPrices && !storedEntryPrices && positionEntryDate) {
-      fetchHistoricalPrices(positionEntryDate);
+    if (!hydrated) return;
+    if (initialFetchAttempted.current) return;
+    if (historicalEntryPrices || storedEntryPrices) {
+      initialFetchAttempted.current = true;
+      return;
     }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+    if (!positionEntryDate) return;
+    initialFetchAttempted.current = true;
+    fetchHistoricalPrices(positionEntryDate);
+  }, [hydrated, historicalEntryPrices, storedEntryPrices, positionEntryDate, fetchHistoricalPrices]);
 
   // Update positions when market data changes
   useEffect(() => {

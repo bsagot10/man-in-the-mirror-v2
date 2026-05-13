@@ -14,8 +14,8 @@ vi.mock('@/lib/market-data/client', () => {
   const defaultMetrics = {
     cacheHits: 10,
     cacheMisses: 2,
-    stooqSuccess: 8,
-    stooqFailed: 0,
+    polygonSuccess: 8,
+    polygonFailed: 0,
     yahooSuccess: 2,
     yahooFailed: 0,
     cacheHitRate: 83.3,
@@ -42,16 +42,16 @@ import { GET as getMetrics } from '@/app/api/metrics/route';
 const createMockMetrics = (overrides: Partial<{
   cacheHits: number;
   cacheMisses: number;
-  stooqSuccess: number;
-  stooqFailed: number;
+  polygonSuccess: number;
+  polygonFailed: number;
   yahooSuccess: number;
   yahooFailed: number;
   cacheHitRate: number;
 }> = {}) => ({
   cacheHits: 10,
   cacheMisses: 2,
-  stooqSuccess: 8,
-  stooqFailed: 0,
+  polygonSuccess: 8,
+  polygonFailed: 0,
   yahooSuccess: 2,
   yahooFailed: 0,
   cacheHitRate: 83.3,
@@ -103,7 +103,7 @@ describe('Health API', () => {
       const data = await response.json();
 
       expect(data.dataSourceHealth).toBeDefined();
-      expect(data.dataSourceHealth.stooq).toBeDefined();
+      expect(data.dataSourceHealth.polygon).toBeDefined();
       expect(data.dataSourceHealth.yahooFinance).toBeDefined();
       expect(data.dataSourceHealth.cache).toBeDefined();
     });
@@ -121,8 +121,8 @@ describe('Health API', () => {
   describe('health status calculation', () => {
     it('returns healthy when success rate >= 50%', async () => {
       mockGetMetricsFn.mockReturnValue(createMockMetrics({
-        stooqSuccess: 6,
-        stooqFailed: 4,
+        polygonSuccess: 6,
+        polygonFailed: 4,
         yahooSuccess: 0,
         yahooFailed: 0,
       }));
@@ -136,8 +136,8 @@ describe('Health API', () => {
 
     it('returns degraded when success rate between 20% and 50%', async () => {
       mockGetMetricsFn.mockReturnValue(createMockMetrics({
-        stooqSuccess: 2,
-        stooqFailed: 8,
+        polygonSuccess: 2,
+        polygonFailed: 8,
         yahooSuccess: 1,
         yahooFailed: 0,
       }));
@@ -151,8 +151,8 @@ describe('Health API', () => {
 
     it('returns unhealthy when success rate < 20%', async () => {
       mockGetMetricsFn.mockReturnValue(createMockMetrics({
-        stooqSuccess: 1,
-        stooqFailed: 9,
+        polygonSuccess: 1,
+        polygonFailed: 9,
         yahooSuccess: 0,
         yahooFailed: 5,
       }));
@@ -166,8 +166,8 @@ describe('Health API', () => {
 
     it('returns healthy when no API calls have been made yet', async () => {
       mockGetMetricsFn.mockReturnValue(createMockMetrics({
-        stooqSuccess: 0,
-        stooqFailed: 0,
+        polygonSuccess: 0,
+        polygonFailed: 0,
         yahooSuccess: 0,
         yahooFailed: 0,
       }));
@@ -181,40 +181,40 @@ describe('Health API', () => {
   });
 
   describe('data source health detection', () => {
-    it('shows stooq as up when it has successful calls', async () => {
+    it('shows polygon as up when it has successful calls', async () => {
       mockGetMetricsFn.mockReturnValue(createMockMetrics({
-        stooqSuccess: 5,
-        stooqFailed: 0,
+        polygonSuccess: 5,
+        polygonFailed: 0,
       }));
 
       const response = await getHealth();
       const data = await response.json();
 
-      expect(data.dataSourceHealth.stooq).toBe('up');
+      expect(data.dataSourceHealth.polygon).toBe('up');
     });
 
-    it('shows stooq as down when it has only failures', async () => {
+    it('shows polygon as down when it has only failures', async () => {
       mockGetMetricsFn.mockReturnValue(createMockMetrics({
-        stooqSuccess: 0,
-        stooqFailed: 5,
+        polygonSuccess: 0,
+        polygonFailed: 5,
       }));
 
       const response = await getHealth();
       const data = await response.json();
 
-      expect(data.dataSourceHealth.stooq).toBe('down');
+      expect(data.dataSourceHealth.polygon).toBe('down');
     });
 
-    it('shows stooq as unknown when no calls', async () => {
+    it('shows polygon as unknown when no calls', async () => {
       mockGetMetricsFn.mockReturnValue(createMockMetrics({
-        stooqSuccess: 0,
-        stooqFailed: 0,
+        polygonSuccess: 0,
+        polygonFailed: 0,
       }));
 
       const response = await getHealth();
       const data = await response.json();
 
-      expect(data.dataSourceHealth.stooq).toBe('unknown');
+      expect(data.dataSourceHealth.polygon).toBe('unknown');
     });
 
     it('shows yahoo as up when it has successful calls', async () => {
@@ -325,8 +325,8 @@ describe('Metrics API', () => {
       mockGetMetricsFn.mockReturnValue(createMockMetrics({
         cacheHits: 15,
         cacheMisses: 5,
-        stooqSuccess: 12,
-        stooqFailed: 2,
+        polygonSuccess: 12,
+        polygonFailed: 2,
         yahooSuccess: 3,
         yahooFailed: 1,
         cacheHitRate: 75.0,
@@ -338,8 +338,8 @@ describe('Metrics API', () => {
       expect(data.metrics).toBeDefined();
       expect(data.metrics.cacheHits).toBe(15);
       expect(data.metrics.cacheMisses).toBe(5);
-      expect(data.metrics.stooqSuccess).toBe(12);
-      expect(data.metrics.stooqFailed).toBe(2);
+      expect(data.metrics.polygonSuccess).toBe(12);
+      expect(data.metrics.polygonFailed).toBe(2);
       expect(data.metrics.yahooSuccess).toBe(3);
       expect(data.metrics.yahooFailed).toBe(1);
       expect(data.metrics.cacheHitRate).toBe(75.0);

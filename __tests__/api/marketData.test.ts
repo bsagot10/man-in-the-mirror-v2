@@ -50,8 +50,8 @@ vi.mock('@/lib/market-data/client', () => {
     getMetrics: vi.fn().mockReturnValue({
       cacheHits: 10,
       cacheMisses: 2,
-      stooqSuccess: 8,
-      stooqFailed: 0,
+      polygonSuccess: 8,
+      polygonFailed: 0,
       yahooSuccess: 2,
       yahooFailed: 0,
       cacheHitRate: 83.3,

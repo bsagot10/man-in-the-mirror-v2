@@ -10,7 +10,6 @@ import {
   MarketDataClient,
   type CurrentMarketData,
   type HistoricalDataPoint,
-  type SymbolQuote,
   SYMBOLS,
   calculateChangePercent,
   formatSymbolData,
@@ -475,7 +474,7 @@ describe('Caching behavior', () => {
   });
 });
 
-describe('Stooq primary with Yahoo fallback', () => {
+describe('Polygon primary with Yahoo fallback', () => {
   let client: MarketDataClient;
 
   beforeEach(async () => {
@@ -486,58 +485,66 @@ describe('Stooq primary with Yahoo fallback', () => {
     mockQuote = yahooFinanceMock.__mockQuote;
     mockHistorical = yahooFinanceMock.__mockHistorical;
 
+    process.env.POLYGON_API_KEY = 'test-key';
     client = new MarketDataClient();
     client.clearCache();
     vi.clearAllMocks();
   });
 
-  it('uses Stooq as primary data source', async () => {
-    // Mock global fetch for Stooq (returns CSV)
-    const stooqCsvResponse = `Symbol,Date,Time,Open,High,Low,Close,Volume
-TQQQ.US,2025-01-02,22:00:00,85.50,86.25,84.75,85.80,50000000`;
+  afterEach(() => {
+    delete process.env.POLYGON_API_KEY;
+  });
+
+  it('uses Polygon as primary data source for ETFs', async () => {
+    const polygonJson = {
+      status: 'OK',
+      ticker: {
+        day: { o: 85.50, h: 86.25, l: 84.75, c: 85.80, v: 50000000 },
+        prevDay: { c: 84.00 },
+        todaysChange: 1.80,
+        todaysChangePerc: 2.14,
+      },
+    };
 
     const mockFetch = vi.fn().mockImplementation((url: string) => {
-      if (url.includes('stooq.com')) {
-        return Promise.resolve({
-          ok: true,
-          text: () => Promise.resolve(stooqCsvResponse),
-        });
+      if (url.includes('api.polygon.io')) {
+        return Promise.resolve({ ok: true, json: () => Promise.resolve(polygonJson) });
       }
       return Promise.resolve({ ok: false });
     });
     global.fetch = mockFetch;
 
-    // Create new client
+    // Mock Yahoo for VIX (always goes to Yahoo)
+    mockQuote.mockResolvedValue({
+      regularMarketPrice: 18.50,
+      regularMarketPreviousClose: 18.00,
+      regularMarketVolume: 0,
+    });
+
     const { MarketDataClient } = await import('@/lib/market-data/client');
     const testClient = new MarketDataClient();
     testClient.clearCache();
 
     const result = await testClient.fetchCurrentData();
 
-    // Should have valid data from Stooq (not zeros)
+    // Should have valid data from Polygon (not zeros)
     expect(result.tqqq.currentPrice).toBeGreaterThan(0);
-    // Yahoo should NOT have been called since Stooq succeeded
-    expect(mockQuote).not.toHaveBeenCalled();
+    // Yahoo should only be called for VIX (not QQQ/TQQQ/SQQQ)
+    expect(mockQuote).toHaveBeenCalledTimes(1);
+    expect(mockQuote).toHaveBeenCalledWith('^VIX', {}, expect.objectContaining({ validateResult: false }));
   });
 
-  it('falls back to Yahoo Finance when Stooq fails', async () => {
-    // Mock Stooq to fail
-    const mockFetch = vi.fn().mockImplementation((url: string) => {
-      if (url.includes('stooq.com')) {
-        return Promise.resolve({ ok: false });
-      }
-      return Promise.resolve({ ok: false });
-    });
+  it('falls back to Yahoo Finance when Polygon fails', async () => {
+    const mockFetch = vi.fn().mockResolvedValue({ ok: false });
     global.fetch = mockFetch;
 
-    // Mock Yahoo Finance to succeed
+    // Mock Yahoo Finance to succeed for all symbols
     mockQuote.mockResolvedValue({
       regularMarketPrice: 85.80,
       regularMarketPreviousClose: 85.50,
       regularMarketVolume: 50000000,
     });
 
-    // Create new client
     const { MarketDataClient } = await import('@/lib/market-data/client');
     const testClient = new MarketDataClient();
     testClient.clearCache();
@@ -546,7 +553,7 @@ TQQQ.US,2025-01-02,22:00:00,85.50,86.25,84.75,85.80,50000000`;
 
     // Should have valid data from Yahoo fallback
     expect(result.tqqq.currentPrice).toBeGreaterThan(0);
-    // Yahoo should have been called as fallback
+    // Yahoo should have been called as fallback for ETFs + once for VIX
     expect(mockQuote).toHaveBeenCalled();
   });
 });
@@ -599,7 +606,7 @@ describe('CurrentMarketData type', () => {
 // Phase 1.1: User-Agent Header and Request Timeout Tests
 // ============================================================================
 
-describe('Stooq User-Agent and Timeout', () => {
+describe('Polygon timeout and fallback', () => {
   let client: MarketDataClient;
   let originalFetch: typeof global.fetch;
 
@@ -611,6 +618,7 @@ describe('Stooq User-Agent and Timeout', () => {
     mockQuote = yahooFinanceMock.__mockQuote;
     mockHistorical = yahooFinanceMock.__mockHistorical;
 
+    process.env.POLYGON_API_KEY = 'test-key';
     originalFetch = global.fetch;
     client = new MarketDataClient();
     client.clearCache();
@@ -619,50 +627,37 @@ describe('Stooq User-Agent and Timeout', () => {
 
   afterEach(() => {
     global.fetch = originalFetch;
+    delete process.env.POLYGON_API_KEY;
     vi.useRealTimers();
   });
 
-  it('includes User-Agent header in Stooq requests', async () => {
-    let capturedHeaders: HeadersInit | undefined;
-
-    const mockFetch = vi.fn().mockImplementation((url: string, options?: RequestInit) => {
-      if (url.includes('stooq.com')) {
-        capturedHeaders = options?.headers;
-        return Promise.resolve({
-          ok: true,
-          text: () => Promise.resolve(`Symbol,Date,Time,Open,High,Low,Close,Volume
-TQQQ.US,2025-01-02,22:00:00,85.50,86.25,84.75,85.80,50000000`),
-        });
-      }
-      return Promise.resolve({ ok: false });
-    });
-    global.fetch = mockFetch;
-
-    const { MarketDataClient } = await import('@/lib/market-data/client');
-    const testClient = new MarketDataClient();
-    testClient.clearCache();
-
-    await testClient.fetchCurrentData();
-
-    expect(capturedHeaders).toBeDefined();
-    expect((capturedHeaders as Record<string, string>)['User-Agent']).toContain('Mozilla');
-  });
-
-  it('uses AbortController with timeout for Stooq requests', async () => {
+  it('uses AbortController with timeout for Polygon requests', async () => {
     let capturedSignal: AbortSignal | null | undefined;
 
+    const polygonJson = {
+      status: 'OK',
+      ticker: {
+        day: { o: 85.50, h: 86.25, l: 84.75, c: 85.80, v: 50000000 },
+        prevDay: { c: 84.00 },
+        todaysChange: 1.80,
+        todaysChangePerc: 2.14,
+      },
+    };
+
     const mockFetch = vi.fn().mockImplementation((url: string, options?: RequestInit) => {
-      if (url.includes('stooq.com')) {
+      if (url.includes('api.polygon.io')) {
         capturedSignal = options?.signal ?? null;
-        return Promise.resolve({
-          ok: true,
-          text: () => Promise.resolve(`Symbol,Date,Time,Open,High,Low,Close,Volume
-TQQQ.US,2025-01-02,22:00:00,85.50,86.25,84.75,85.80,50000000`),
-        });
+        return Promise.resolve({ ok: true, json: () => Promise.resolve(polygonJson) });
       }
       return Promise.resolve({ ok: false });
     });
     global.fetch = mockFetch;
+
+    mockQuote.mockResolvedValue({
+      regularMarketPrice: 18.50,
+      regularMarketPreviousClose: 18.00,
+      regularMarketVolume: 0,
+    });
 
     const { MarketDataClient } = await import('@/lib/market-data/client');
     const testClient = new MarketDataClient();
@@ -674,14 +669,12 @@ TQQQ.US,2025-01-02,22:00:00,85.50,86.25,84.75,85.80,50000000`),
     expect(capturedSignal).toBeInstanceOf(AbortSignal);
   });
 
-  it('falls back to Yahoo Finance when Stooq times out', async () => {
+  it('falls back to Yahoo Finance when Polygon times out', async () => {
     vi.useFakeTimers();
 
-    // Mock Stooq to timeout (never resolve within timeout period)
     const mockFetch = vi.fn().mockImplementation((url: string, options?: RequestInit) => {
-      if (url.includes('stooq.com')) {
+      if (url.includes('api.polygon.io')) {
         return new Promise((_, reject) => {
-          // Simulate timeout by listening to abort signal
           options?.signal?.addEventListener('abort', () => {
             reject(new DOMException('Aborted', 'AbortError'));
           });
@@ -691,7 +684,6 @@ TQQQ.US,2025-01-02,22:00:00,85.50,86.25,84.75,85.80,50000000`),
     });
     global.fetch = mockFetch;
 
-    // Mock Yahoo Finance fallback
     mockQuote.mockResolvedValue({
       regularMarketPrice: 85.80,
       regularMarketPreviousClose: 85.50,
@@ -704,38 +696,34 @@ TQQQ.US,2025-01-02,22:00:00,85.50,86.25,84.75,85.80,50000000`),
 
     const fetchPromise = testClient.fetchCurrentData();
 
-    // Advance timers to trigger timeout
-    await vi.advanceTimersByTimeAsync(6000);
+    // Advance timers past POLYGON_TIMEOUT_MS (8000ms)
+    await vi.advanceTimersByTimeAsync(9000);
 
     const result = await fetchPromise;
 
-    // Should have fallen back to Yahoo Finance
     expect(mockQuote).toHaveBeenCalled();
     expect(result.tqqq.currentPrice).toBeGreaterThan(0);
   });
 
-  it('VIX always falls back to Yahoo Finance (Stooq does not support VIX)', async () => {
-    // Stooq returns N/D for VIX
+  it('VIX always uses Yahoo Finance (not in POLYGON_SUPPORTED_SYMBOLS)', async () => {
+    const polygonJson = {
+      status: 'OK',
+      ticker: {
+        day: { o: 85.50, h: 86.25, l: 84.75, c: 85.80, v: 50000000 },
+        prevDay: { c: 84.00 },
+        todaysChange: 1.80,
+        todaysChangePerc: 2.14,
+      },
+    };
+
     const mockFetch = vi.fn().mockImplementation((url: string) => {
-      if (url.includes('stooq.com') && url.includes('VIX')) {
-        return Promise.resolve({
-          ok: true,
-          text: () => Promise.resolve(`Symbol,Date,Time,Open,High,Low,Close,Volume
-^VIX,N/D,N/D,N/D,N/D,N/D,N/D,N/D`),
-        });
-      }
-      if (url.includes('stooq.com')) {
-        return Promise.resolve({
-          ok: true,
-          text: () => Promise.resolve(`Symbol,Date,Time,Open,High,Low,Close,Volume
-TQQQ.US,2025-01-02,22:00:00,85.50,86.25,84.75,85.80,50000000`),
-        });
+      if (url.includes('api.polygon.io')) {
+        return Promise.resolve({ ok: true, json: () => Promise.resolve(polygonJson) });
       }
       return Promise.resolve({ ok: false });
     });
     global.fetch = mockFetch;
 
-    // Mock Yahoo Finance for VIX
     mockQuote.mockResolvedValue({
       regularMarketPrice: 18.50,
       regularMarketPreviousClose: 18.00,
@@ -748,26 +736,36 @@ TQQQ.US,2025-01-02,22:00:00,85.50,86.25,84.75,85.80,50000000`),
 
     const result = await testClient.fetchCurrentData();
 
-    // VIX should have data from Yahoo fallback
     expect(result.vix.currentPrice).toBeGreaterThan(0);
-    // Yahoo should have been called for VIX (quote takes 3 args: symbol, {}, { validateResult: false })
     expect(mockQuote).toHaveBeenCalledWith('^VIX', {}, expect.objectContaining({ validateResult: false }));
   });
 
-  it('clears timeout after successful Stooq response', async () => {
+  it('clears timeout after successful Polygon response', async () => {
     const clearTimeoutSpy = vi.spyOn(global, 'clearTimeout');
 
+    const polygonJson = {
+      status: 'OK',
+      ticker: {
+        day: { o: 85.50, h: 86.25, l: 84.75, c: 85.80, v: 50000000 },
+        prevDay: { c: 84.00 },
+        todaysChange: 1.80,
+        todaysChangePerc: 2.14,
+      },
+    };
+
     const mockFetch = vi.fn().mockImplementation((url: string) => {
-      if (url.includes('stooq.com')) {
-        return Promise.resolve({
-          ok: true,
-          text: () => Promise.resolve(`Symbol,Date,Time,Open,High,Low,Close,Volume
-TQQQ.US,2025-01-02,22:00:00,85.50,86.25,84.75,85.80,50000000`),
-        });
+      if (url.includes('api.polygon.io')) {
+        return Promise.resolve({ ok: true, json: () => Promise.resolve(polygonJson) });
       }
       return Promise.resolve({ ok: false });
     });
     global.fetch = mockFetch;
+
+    mockQuote.mockResolvedValue({
+      regularMarketPrice: 18.50,
+      regularMarketPreviousClose: 18.00,
+      regularMarketVolume: 0,
+    });
 
     const { MarketDataClient } = await import('@/lib/market-data/client');
     const testClient = new MarketDataClient();
@@ -775,7 +773,6 @@ TQQQ.US,2025-01-02,22:00:00,85.50,86.25,84.75,85.80,50000000`),
 
     await testClient.fetchCurrentData();
 
-    // clearTimeout should have been called after successful response
     expect(clearTimeoutSpy).toHaveBeenCalled();
     clearTimeoutSpy.mockRestore();
   });
@@ -1016,13 +1013,19 @@ describe('Cache Metrics', () => {
   });
 
   it('tracks cache hits and misses', async () => {
+    process.env.POLYGON_API_KEY = 'test-key';
+    const polygonJson = {
+      status: 'OK',
+      ticker: {
+        day: { o: 85.50, h: 86.25, l: 84.75, c: 85.80, v: 50000000 },
+        prevDay: { c: 84.00 },
+        todaysChange: 1.80,
+        todaysChangePerc: 2.14,
+      },
+    };
     const mockFetch = vi.fn().mockImplementation((url: string) => {
-      if (url.includes('stooq.com')) {
-        return Promise.resolve({
-          ok: true,
-          text: () => Promise.resolve(`Symbol,Date,Time,Open,High,Low,Close,Volume
-TQQQ.US,2025-01-02,22:00:00,85.50,86.25,84.75,85.80,50000000`),
-        });
+      if (url.includes('api.polygon.io')) {
+        return Promise.resolve({ ok: true, json: () => Promise.resolve(polygonJson) });
       }
       return Promise.resolve({ ok: false });
     });
@@ -1042,6 +1045,7 @@ TQQQ.US,2025-01-02,22:00:00,85.50,86.25,84.75,85.80,50000000`),
     expect(metrics).toBeDefined();
     expect(metrics.cacheHits).toBeGreaterThanOrEqual(1);
     expect(metrics.cacheMisses).toBeGreaterThanOrEqual(1);
+    delete process.env.POLYGON_API_KEY;
   });
 
   it('calculates cache hit rate correctly', async () => {
@@ -1054,14 +1058,14 @@ TQQQ.US,2025-01-02,22:00:00,85.50,86.25,84.75,85.80,50000000`),
     expect(typeof metrics.cacheHitRate).toBe('number');
   });
 
-  it('tracks Stooq and Yahoo success/failure counts', async () => {
+  it('tracks Polygon and Yahoo success/failure counts', async () => {
     const { MarketDataClient } = await import('@/lib/market-data/client');
     const testClient = new MarketDataClient();
 
     const metrics = testClient.getMetrics();
 
-    expect(metrics).toHaveProperty('stooqSuccess');
-    expect(metrics).toHaveProperty('stooqFailed');
+    expect(metrics).toHaveProperty('polygonSuccess');
+    expect(metrics).toHaveProperty('polygonFailed');
     expect(metrics).toHaveProperty('yahooSuccess');
     expect(metrics).toHaveProperty('yahooFailed');
   });
@@ -1086,14 +1090,20 @@ describe('Full Fallback Chain Integration', () => {
   });
 
   it('returns cached data when all sources fail', async () => {
-    // First call with working Stooq to populate cache
+    process.env.POLYGON_API_KEY = 'test-key';
+    const polygonJson = {
+      status: 'OK',
+      ticker: {
+        day: { o: 85.50, h: 86.25, l: 84.75, c: 85.80, v: 50000000 },
+        prevDay: { c: 84.00 },
+        todaysChange: 1.80,
+        todaysChangePerc: 2.14,
+      },
+    };
+    // First call with working Polygon to populate cache
     const mockFetch = vi.fn().mockImplementation((url: string) => {
-      if (url.includes('stooq.com')) {
-        return Promise.resolve({
-          ok: true,
-          text: () => Promise.resolve(`Symbol,Date,Time,Open,High,Low,Close,Volume
-TQQQ.US,2025-01-02,22:00:00,85.50,86.25,84.75,85.80,50000000`),
-        });
+      if (url.includes('api.polygon.io')) {
+        return Promise.resolve({ ok: true, json: () => Promise.resolve(polygonJson) });
       }
       return Promise.resolve({ ok: false });
     });
@@ -1115,17 +1125,24 @@ TQQQ.US,2025-01-02,22:00:00,85.50,86.25,84.75,85.80,50000000`),
 
     // Should still have valid data from cache
     expect(result.tqqq.currentPrice).toBeGreaterThan(0);
+    delete process.env.POLYGON_API_KEY;
   });
 
   it('handles partial success (some symbols fail)', async () => {
-    // Mock Stooq to work for TQQQ but fail for SQQQ
+    process.env.POLYGON_API_KEY = 'test-key';
+    const polygonJson = {
+      status: 'OK',
+      ticker: {
+        day: { o: 85.50, h: 86.25, l: 84.75, c: 85.80, v: 50000000 },
+        prevDay: { c: 84.00 },
+        todaysChange: 1.80,
+        todaysChangePerc: 2.14,
+      },
+    };
+    // Mock Polygon to work for TQQQ but fail for SQQQ/QQQ
     const mockFetch = vi.fn().mockImplementation((url: string) => {
-      if (url.includes('stooq.com') && url.includes('TQQQ')) {
-        return Promise.resolve({
-          ok: true,
-          text: () => Promise.resolve(`Symbol,Date,Time,Open,High,Low,Close,Volume
-TQQQ.US,2025-01-02,22:00:00,85.50,86.25,84.75,85.80,50000000`),
-        });
+      if (url.includes('api.polygon.io') && url.includes('TQQQ')) {
+        return Promise.resolve({ ok: true, json: () => Promise.resolve(polygonJson) });
       }
       return Promise.resolve({ ok: false });
     });
@@ -1144,22 +1161,29 @@ TQQQ.US,2025-01-02,22:00:00,85.50,86.25,84.75,85.80,50000000`),
 
     const result = await testClient.fetchCurrentData();
 
-    // Both should have data (one from Stooq, one from Yahoo fallback)
+    // Both should have data (one from Polygon, one from Yahoo fallback)
     expect(result.tqqq.currentPrice).toBeGreaterThan(0);
     expect(result.sqqq.currentPrice).toBeGreaterThan(0);
+    delete process.env.POLYGON_API_KEY;
   });
 
   it('handles concurrent requests by caching after first batch completes', async () => {
+    process.env.POLYGON_API_KEY = 'test-key';
     let fetchCallCount = 0;
 
+    const polygonJson = {
+      status: 'OK',
+      ticker: {
+        day: { o: 85.50, h: 86.25, l: 84.75, c: 85.80, v: 50000000 },
+        prevDay: { c: 84.00 },
+        todaysChange: 1.80,
+        todaysChangePerc: 2.14,
+      },
+    };
     const mockFetch = vi.fn().mockImplementation((url: string) => {
-      if (url.includes('stooq.com')) {
+      if (url.includes('api.polygon.io')) {
         fetchCallCount++;
-        return Promise.resolve({
-          ok: true,
-          text: () => Promise.resolve(`Symbol,Date,Time,Open,High,Low,Close,Volume
-TQQQ.US,2025-01-02,22:00:00,85.50,86.25,84.75,85.80,50000000`),
-        });
+        return Promise.resolve({ ok: true, json: () => Promise.resolve(polygonJson) });
       }
       return Promise.resolve({ ok: false });
     });
@@ -1189,6 +1213,7 @@ TQQQ.US,2025-01-02,22:00:00,85.50,86.25,84.75,85.80,50000000`),
     // First batch makes 4 calls per concurrent request due to parallel fetches
     // But caching kicks in after first request completes
     expect(firstBatchCalls).toBeGreaterThan(0);
+    delete process.env.POLYGON_API_KEY;
   });
 });
 
@@ -1217,13 +1242,11 @@ describe('Stale Data Indicator', () => {
   });
 
   it('returns fresh data without stale indicators on first fetch', async () => {
-    // Mock successful Stooq response
-    global.fetch = vi.fn().mockResolvedValue({
-      ok: true,
-      text: () =>
-        Promise.resolve(
-          'Symbol,Date,Time,Open,High,Low,Close,Volume\nQQQ.US,2024-01-15,16:00:00,420.50,422.00,419.00,421.25,50000000'
-        ),
+    // Mock Yahoo Finance for all 4 symbols
+    mockQuote.mockResolvedValue({
+      regularMarketPrice: 421.25,
+      regularMarketPreviousClose: 420.00,
+      regularMarketVolume: 50000000,
     });
 
     const client = new MarketDataClient();
@@ -1235,13 +1258,11 @@ describe('Stale Data Indicator', () => {
   });
 
   it('returns cached data with fresh indicator when within TTL', async () => {
-    // Mock successful Stooq response
-    global.fetch = vi.fn().mockResolvedValue({
-      ok: true,
-      text: () =>
-        Promise.resolve(
-          'Symbol,Date,Time,Open,High,Low,Close,Volume\nQQQ.US,2024-01-15,16:00:00,420.50,422.00,419.00,421.25,50000000'
-        ),
+    // Mock Yahoo Finance for all 4 symbols
+    mockQuote.mockResolvedValue({
+      regularMarketPrice: 421.25,
+      regularMarketPreviousClose: 420.00,
+      regularMarketVolume: 50000000,
     });
 
     const client = new MarketDataClient();
@@ -1261,17 +1282,11 @@ describe('Stale Data Indicator', () => {
   });
 
   it('returns cached data with stale indicator when cache is expired but used as fallback', async () => {
-    // Mock successful Stooq response first, then failure
-    const mockFetch = vi.fn();
-    global.fetch = mockFetch;
-
-    // First call succeeds
-    mockFetch.mockResolvedValueOnce({
-      ok: true,
-      text: () =>
-        Promise.resolve(
-          'Symbol,Date,Time,Open,High,Low,Close,Volume\nQQQ.US,2024-01-15,16:00:00,420.50,422.00,419.00,421.25,50000000'
-        ),
+    // First call succeeds via Yahoo (all 4 symbols) — populates cache
+    mockQuote.mockResolvedValue({
+      regularMarketPrice: 421.25,
+      regularMarketPreviousClose: 420.00,
+      regularMarketVolume: 50000000,
     });
 
     const client = new MarketDataClient();
@@ -1283,7 +1298,6 @@ describe('Stale Data Indicator', () => {
     vi.advanceTimersByTime(6 * 60 * 1000);
 
     // Mock failure for all subsequent calls (use 404 to skip retries)
-    mockFetch.mockResolvedValue({ ok: false });
     mockQuote.mockRejectedValue(new Error('404 Not Found'));
 
     // Third fetch - should use stale cache as fallback
@@ -1295,12 +1309,10 @@ describe('Stale Data Indicator', () => {
   }, 10000);
 
   it('includes cacheAge in milliseconds', async () => {
-    global.fetch = vi.fn().mockResolvedValue({
-      ok: true,
-      text: () =>
-        Promise.resolve(
-          'Symbol,Date,Time,Open,High,Low,Close,Volume\nQQQ.US,2024-01-15,16:00:00,420.50,422.00,419.00,421.25,50000000'
-        ),
+    mockQuote.mockResolvedValue({
+      regularMarketPrice: 421.25,
+      regularMarketPreviousClose: 420.00,
+      regularMarketVolume: 50000000,
     });
 
     const client = new MarketDataClient();
@@ -1319,16 +1331,11 @@ describe('Stale Data Indicator', () => {
   });
 
   it('sets isStale to true when cache is older than TTL', async () => {
-    const mockFetch = vi.fn();
-    global.fetch = mockFetch;
-
-    // First call succeeds
-    mockFetch.mockResolvedValueOnce({
-      ok: true,
-      text: () =>
-        Promise.resolve(
-          'Symbol,Date,Time,Open,High,Low,Close,Volume\nQQQ.US,2024-01-15,16:00:00,420.50,422.00,419.00,421.25,50000000'
-        ),
+    // First call succeeds via Yahoo, then fails
+    mockQuote.mockResolvedValue({
+      regularMarketPrice: 421.25,
+      regularMarketPreviousClose: 420.00,
+      regularMarketVolume: 50000000,
     });
 
     const client = new MarketDataClient();
@@ -1338,7 +1345,6 @@ describe('Stale Data Indicator', () => {
     vi.advanceTimersByTime(10 * 60 * 1000); // 10 minutes
 
     // All subsequent calls fail with 404 (to skip retries)
-    mockFetch.mockResolvedValue({ ok: false });
     mockQuote.mockRejectedValue(new Error('404 Not Found'));
 
     const result = await client.fetchCurrentData();
@@ -1347,12 +1353,10 @@ describe('Stale Data Indicator', () => {
   }, 10000);
 
   it('sets isStale to false when cache is within TTL', async () => {
-    global.fetch = vi.fn().mockResolvedValue({
-      ok: true,
-      text: () =>
-        Promise.resolve(
-          'Symbol,Date,Time,Open,High,Low,Close,Volume\nQQQ.US,2024-01-15,16:00:00,420.50,422.00,419.00,421.25,50000000'
-        ),
+    mockQuote.mockResolvedValue({
+      regularMarketPrice: 421.25,
+      regularMarketPreviousClose: 420.00,
+      regularMarketVolume: 50000000,
     });
 
     const client = new MarketDataClient();
@@ -1557,14 +1561,14 @@ describe('structuredLog', () => {
         component: 'MarketDataClient',
         action: 'fetchCurrentData',
         duration: 150,
-        source: 'stooq',
+        source: 'polygon',
       });
       const logOutput = (console.log as ReturnType<typeof vi.fn>).mock.calls[0][0];
       const parsed = JSON.parse(logOutput);
       expect(parsed.component).toBe('MarketDataClient');
       expect(parsed.action).toBe('fetchCurrentData');
       expect(parsed.duration).toBe(150);
-      expect(parsed.source).toBe('stooq');
+      expect(parsed.source).toBe('polygon');
     });
   });
 

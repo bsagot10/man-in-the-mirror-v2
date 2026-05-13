@@ -12,11 +12,13 @@ import YahooFinance from 'yahoo-finance2';
 const yahooFinance = new YahooFinance();
 
 // ============================================================================
-// Constants for Stooq requests
+// Constants for HTTP requests
 // ============================================================================
 
-const STOOQ_USER_AGENT = 'Mozilla/5.0 (compatible; ManInTheMirror/1.0; +https://github.com/bsagot10/man-in-the-mirror-v2)';
-const STOOQ_TIMEOUT_MS = 5000; // 5 second timeout
+const POLYGON_BASE_URL = 'https://api.polygon.io';
+const POLYGON_TIMEOUT_MS = 8000;
+// ETF tickers supported by Polygon; VIX is an index handled by Yahoo/FRED
+const POLYGON_SUPPORTED_SYMBOLS = new Set(['QQQ', 'TQQQ', 'SQQQ']);
 const RETRY_JITTER_MAX_MS = 500; // Max random jitter for retry backoff
 
 // ============================================================================
@@ -99,7 +101,7 @@ interface LogContext {
   action: string;
   symbol?: string;
   duration?: number;
-  source?: 'stooq' | 'yahoo' | 'cache' | 'fred';
+  source?: 'polygon' | 'yahoo' | 'cache' | 'fred';
   errorType?: string;
   [key: string]: unknown;
 }
@@ -370,174 +372,110 @@ function generateDemoHistoricalData(
   return result;
 }
 
-// Stooq API (primary data source - no API key required)
-const STOOQ_BASE_URL = 'https://stooq.com/q/l/';
-const STOOQ_SYMBOLS: Record<string, string> = {
-  '^VIX': '^VIX', 'QQQ': 'QQQ.US', 'TQQQ': 'TQQQ.US', 'SQQQ': 'SQQQ.US',
-};
+// ============================================================================
+// Polygon.io API (primary source for ETF quotes and history)
+// ============================================================================
 
-interface StooqQuote {
-  symbol: string;
-  date: string;
-  time: string;
-  open: number;
-  high: number;
-  low: number;
-  close: number;
-  volume: number;
+// FRED API for VIX (fallback when Yahoo hits rate limits)
+const FRED_VIX_URL = 'https://fred.stlouisfed.org/graph/fredgraph.csv?id=VIXCLS';
+
+interface PolygonSnapshotResponse {
+  status: string;
+  ticker?: {
+    day: { o: number; h: number; l: number; c: number; v: number };
+    prevDay: { c: number };
+    todaysChange: number;
+    todaysChangePerc: number;
+  };
 }
 
-async function fetchStooqQuote(symbol: string): Promise<StooqQuote | null> {
+async function fetchPolygonQuote(symbol: string): Promise<SymbolQuote | null> {
+  const apiKey = process.env.POLYGON_API_KEY;
+  if (!apiKey || !POLYGON_SUPPORTED_SYMBOLS.has(symbol)) return null;
+
   const controller = new AbortController();
-  const timeoutId = setTimeout(() => controller.abort(), STOOQ_TIMEOUT_MS);
+  const timeoutId = setTimeout(() => controller.abort(), POLYGON_TIMEOUT_MS);
 
   try {
-    const stooqSymbol = STOOQ_SYMBOLS[symbol] || symbol;
-    const url = `${STOOQ_BASE_URL}?s=${stooqSymbol}&f=sd2t2ohlcv&h&e=csv`;
-
-    const response = await fetch(url, {
-      signal: controller.signal,
-      headers: {
-        'User-Agent': STOOQ_USER_AGENT,
-      },
-    });
+    const url = `${POLYGON_BASE_URL}/v2/snapshot/locale/us/markets/stocks/tickers/${symbol}?apiKey=${apiKey}`;
+    const response = await fetch(url, { signal: controller.signal });
     clearTimeout(timeoutId);
 
     if (!response.ok) return null;
 
-    const csvText = await response.text();
-    const lines = csvText.trim().split('\n');
-    if (lines.length < 2) return null;
+    const data: PolygonSnapshotResponse = await response.json();
+    const ticker = data?.ticker;
+    if (!ticker?.day?.c) return null;
 
-    // Parse CSV: Symbol,Date,Time,Open,High,Low,Close,Volume
-    const dataLine = lines[1];
-    const values = dataLine.split(',');
-    if (values.length < 8) return null;
-
-    const close = parseFloat(values[6]);
-    if (isNaN(close) || close === 0) return null;
+    const currentPrice = ticker.day.c;
+    const previousClose = ticker.prevDay?.c ?? currentPrice;
 
     return {
-      symbol: values[0],
-      date: values[1],
-      time: values[2],
-      open: parseFloat(values[3]) || 0,
-      high: parseFloat(values[4]) || 0,
-      low: parseFloat(values[5]) || 0,
-      close,
-      volume: parseInt(values[7], 10) || 0,
+      currentPrice,
+      previousClose,
+      change: Math.round((currentPrice - previousClose) * 100) / 100,
+      changePercent: previousClose === 0 ? 0 : Math.round(((currentPrice - previousClose) / previousClose) * 10000) / 100,
+      volume: ticker.day.v ?? 0,
+      timestamp: new Date().toISOString(),
     };
   } catch (error) {
     clearTimeout(timeoutId);
     if (error instanceof Error && error.name === 'AbortError') {
-      console.warn(`Stooq request timed out for ${symbol}`);
+      console.warn(`Polygon request timed out for ${symbol}`);
     }
     return null;
   }
 }
 
-function formatStooqQuote(quote: StooqQuote): SymbolQuote {
-  const currentPrice = quote.close;
-  // Stooq doesn't provide previous close, estimate from open
-  const previousClose = quote.open || currentPrice;
-  return {
-    currentPrice,
-    previousClose,
-    change: Math.round((currentPrice - previousClose) * 100) / 100,
-    changePercent: previousClose === 0 ? 0 : Math.round(((currentPrice - previousClose) / previousClose) * 10000) / 100,
-    volume: quote.volume,
-    timestamp: new Date().toISOString(),
-  };
+interface PolygonAggsResponse {
+  status: string;
+  results?: Array<{ t: number; o: number; h: number; l: number; c: number; v: number }>;
 }
 
-// Stooq Historical Data endpoint
-const STOOQ_HISTORICAL_URL = 'https://stooq.com/q/d/l/';
-
-// FRED API for VIX (fallback when Yahoo hits rate limits)
-const FRED_VIX_URL = 'https://fred.stlouisfed.org/graph/fredgraph.csv?id=VIXCLS';
-
-/**
- * Format date for Stooq API (YYYYMMDD format)
- */
-function formatDateForStooq(date: Date): string {
-  const year = date.getFullYear();
-  const month = String(date.getMonth() + 1).padStart(2, '0');
-  const day = String(date.getDate()).padStart(2, '0');
-  return `${year}${month}${day}`;
-}
-
-/**
- * Fetch historical data from Stooq (primary source for historical data)
- * Returns null if fetch fails, allowing fallback to Yahoo Finance.
- */
-async function fetchStooqHistoricalData(
+async function fetchPolygonHistoricalData(
   symbol: string,
   startDate: Date,
   endDate: Date
 ): Promise<HistoricalDataPoint[] | null> {
+  const apiKey = process.env.POLYGON_API_KEY;
+  if (!apiKey || !POLYGON_SUPPORTED_SYMBOLS.has(symbol)) return null;
+
   const controller = new AbortController();
-  const timeoutId = setTimeout(() => controller.abort(), STOOQ_TIMEOUT_MS);
+  const timeoutId = setTimeout(() => controller.abort(), POLYGON_TIMEOUT_MS);
 
   try {
-    const stooqSymbol = STOOQ_SYMBOLS[symbol] || `${symbol}.US`;
-    const d1 = formatDateForStooq(startDate);
-    const d2 = formatDateForStooq(endDate);
-    const url = `${STOOQ_HISTORICAL_URL}?s=${stooqSymbol}&d1=${d1}&d2=${d2}&i=d`;
+    const from = formatDateToISO(startDate);
+    const to = formatDateToISO(endDate);
+    const url = `${POLYGON_BASE_URL}/v2/aggs/ticker/${symbol}/range/1/day/${from}/${to}?adjusted=true&sort=asc&limit=120&apiKey=${apiKey}`;
 
-    const response = await fetch(url, {
-      signal: controller.signal,
-      headers: {
-        'User-Agent': STOOQ_USER_AGENT,
-      },
-    });
+    const response = await fetch(url, { signal: controller.signal });
     clearTimeout(timeoutId);
 
     if (!response.ok) {
-      console.warn(`Stooq historical request failed for ${symbol}: ${response.status}`);
+      console.warn(`Polygon historical request failed for ${symbol}: ${response.status}`);
       return null;
     }
 
-    const csvText = await response.text();
-    const lines = csvText.trim().split('\n');
-
-    // Need at least header + 1 data row
-    if (lines.length < 2) {
-      console.warn(`No historical data from Stooq for ${symbol}`);
+    const data: PolygonAggsResponse = await response.json();
+    if (!data.results || data.results.length === 0) {
+      console.warn(`No historical data from Polygon for ${symbol}`);
       return null;
     }
 
-    // Parse CSV: Date,Open,High,Low,Close,Volume
-    const dataPoints: HistoricalDataPoint[] = [];
-
-    for (let i = 1; i < lines.length; i++) {
-      const values = lines[i].split(',');
-      if (values.length < 6) continue;
-
-      const close = parseFloat(values[4]);
-      if (isNaN(close) || close === 0) continue;
-
-      dataPoints.push({
-        date: values[0], // Already in YYYY-MM-DD format
-        open: parseFloat(values[1]) || 0,
-        high: parseFloat(values[2]) || 0,
-        low: parseFloat(values[3]) || 0,
-        close,
-        volume: parseInt(values[5], 10) || 0,
-      });
-    }
-
-    if (dataPoints.length === 0) {
-      console.warn(`No valid data points from Stooq for ${symbol}`);
-      return null;
-    }
-
-    return dataPoints;
+    return data.results.map((bar) => ({
+      date: new Date(bar.t).toISOString().split('T')[0],
+      open: bar.o,
+      high: bar.h,
+      low: bar.l,
+      close: bar.c,
+      volume: bar.v,
+    }));
   } catch (error) {
     clearTimeout(timeoutId);
     if (error instanceof Error && error.name === 'AbortError') {
-      console.warn(`Stooq historical request timed out for ${symbol}`);
+      console.warn(`Polygon historical request timed out for ${symbol}`);
     } else {
-      console.warn(`Stooq historical fetch error for ${symbol}:`, error);
+      console.warn(`Polygon historical fetch error for ${symbol}:`, error);
     }
     return null;
   }
@@ -553,15 +491,10 @@ async function fetchStooqHistoricalData(
  */
 export async function fetchFredVixHistorical(days: number = 30): Promise<HistoricalDataPoint[] | null> {
   const controller = new AbortController();
-  const timeoutId = setTimeout(() => controller.abort(), STOOQ_TIMEOUT_MS);
+  const timeoutId = setTimeout(() => controller.abort(), POLYGON_TIMEOUT_MS);
 
   try {
-    const response = await fetch(FRED_VIX_URL, {
-      signal: controller.signal,
-      headers: {
-        'User-Agent': STOOQ_USER_AGENT,
-      },
-    });
+    const response = await fetch(FRED_VIX_URL, { signal: controller.signal });
     clearTimeout(timeoutId);
 
     if (!response.ok) {
@@ -778,8 +711,8 @@ export class MarketDataClient {
   private metrics = {
     cacheHits: 0,
     cacheMisses: 0,
-    stooqSuccess: 0,
-    stooqFailed: 0,
+    polygonSuccess: 0,
+    polygonFailed: 0,
     yahooSuccess: 0,
     yahooFailed: 0,
   };
@@ -879,20 +812,21 @@ export class MarketDataClient {
 
   /**
    * Fetch quote for a single symbol.
-   * Uses Stooq as primary source, falls back to Yahoo Finance with retry.
+   * Uses Polygon.io as primary source for ETFs, falls back to Yahoo Finance.
+   * VIX goes straight to Yahoo (Polygon free tier targets ETFs/stocks).
    */
   private async fetchQuote(symbol: string): Promise<SymbolQuote | null> {
-    // Try Stooq first (no API key required, reliable)
-    const stooqQuote = await fetchStooqQuote(symbol);
-    if (stooqQuote) {
-      this.metrics.stooqSuccess++;
-      return formatStooqQuote(stooqQuote);
+    if (symbol !== SYMBOLS.VIX) {
+      const polygonQuote = await fetchPolygonQuote(symbol);
+      if (polygonQuote) {
+        this.metrics.polygonSuccess++;
+        return polygonQuote;
+      }
+      this.metrics.polygonFailed++;
     }
 
-    this.metrics.stooqFailed++;
-
-    // Fall back to Yahoo Finance with retry
-    structuredLog(LogLevel.INFO, 'Stooq unavailable, trying Yahoo Finance fallback', {
+    // VIX always uses Yahoo; ETFs fall back to Yahoo when Polygon is unavailable
+    structuredLog(LogLevel.INFO, symbol === SYMBOLS.VIX ? 'Fetching VIX from Yahoo Finance' : 'Polygon unavailable, trying Yahoo Finance fallback', {
       component: 'MarketDataClient',
       action: 'fetchQuote',
       symbol,
@@ -1057,32 +991,28 @@ export class MarketDataClient {
 
   /**
    * Fetch historical data for a single symbol.
-   * Uses Stooq as primary source (for non-VIX), falls back to Yahoo Finance.
-   * VIX: Uses Yahoo Finance only (no Stooq data).
+   * Uses Polygon.io as primary source for ETFs, falls back to Yahoo Finance.
+   * VIX goes straight to Yahoo (Polygon free tier targets ETFs/stocks).
    */
   private async fetchSymbolHistory(
     symbol: string,
     startDate: Date,
     endDate: Date,
   ): Promise<HistoricalDataPoint[]> {
-    // VIX doesn't have Stooq data, use Yahoo Finance directly
     if (symbol !== SYMBOLS.VIX) {
-      // Try Stooq first (primary source for non-VIX)
-      const stooqData = await fetchStooqHistoricalData(symbol, startDate, endDate);
-      if (stooqData && stooqData.length > 0) {
-        this.metrics.stooqSuccess++;
-        return stooqData;
+      const polygonData = await fetchPolygonHistoricalData(symbol, startDate, endDate);
+      if (polygonData && polygonData.length > 0) {
+        this.metrics.polygonSuccess++;
+        return polygonData;
       }
 
-      // Stooq failed, try Yahoo Finance as fallback
-      structuredLog(LogLevel.INFO, 'Stooq historical unavailable, trying Yahoo Finance fallback', {
+      structuredLog(LogLevel.INFO, 'Polygon historical unavailable, trying Yahoo Finance fallback', {
         component: 'MarketDataClient',
         action: 'fetchSymbolHistory',
         symbol,
         source: 'yahoo',
       });
     } else {
-      // VIX: Go straight to Yahoo Finance
       structuredLog(LogLevel.INFO, 'Fetching VIX from Yahoo Finance', {
         component: 'MarketDataClient',
         action: 'fetchSymbolHistory',

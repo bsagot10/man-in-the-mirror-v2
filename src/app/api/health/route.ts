@@ -22,10 +22,10 @@ function getHealthStatus(successRate: number): 'healthy' | 'degraded' | 'unhealt
 export async function GET() {
   try {
     const metrics = marketDataClient.getMetrics();
-    const totalCalls = metrics.stooqSuccess + metrics.stooqFailed +
+    const totalCalls = metrics.polygonSuccess + metrics.polygonFailed +
                        metrics.yahooSuccess + metrics.yahooFailed;
     const successRate = totalCalls > 0
-      ? ((metrics.stooqSuccess + metrics.yahooSuccess) / totalCalls) * 100
+      ? ((metrics.polygonSuccess + metrics.yahooSuccess) / totalCalls) * 100
       : 100; // Assume healthy if no calls yet
 
     const status = getHealthStatus(successRate);
@@ -36,7 +36,7 @@ export async function GET() {
         timestamp: new Date().toISOString(),
         uptime: process.uptime(),
         dataSourceHealth: {
-          stooq: metrics.stooqSuccess > 0 ? 'up' : metrics.stooqFailed > 0 ? 'down' : 'unknown',
+          polygon: metrics.polygonSuccess > 0 ? 'up' : metrics.polygonFailed > 0 ? 'down' : 'unknown',
           yahooFinance: metrics.yahooSuccess > 0 ? 'up' : metrics.yahooFailed > 0 ? 'down' : 'unknown',
           cache: metrics.cacheHits > 0 ? 'warm' : 'cold',
         },
