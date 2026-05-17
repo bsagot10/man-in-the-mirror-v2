@@ -11,50 +11,7 @@
 'use client';
 
 import { useState, useEffect, useCallback } from 'react';
-
-// ============================================================================
-// Types
-// ============================================================================
-
-interface SymbolData {
-  currentPrice: number;
-  changePercent: number;
-  previousClose: number;
-  change: number;
-  volume: number;
-  timestamp: string;
-}
-
-interface MarketData {
-  vix: SymbolData;
-  qqq: SymbolData;
-  tqqq: SymbolData;
-  sqqq: SymbolData;
-}
-
-interface HistoricalDataPoint {
-  date: string;
-  open: number;
-  high: number;
-  low: number;
-  close: number;
-  volume: number;
-}
-
-interface HistoricalData {
-  vix: HistoricalDataPoint[];
-  tqqq: HistoricalDataPoint[];
-  sqqq: HistoricalDataPoint[];
-}
-
-interface EntryScore {
-  total: number;
-  signal: 'ENTER' | 'WATCH' | 'WAIT';
-  volatilityRegime: string;
-  volatilityScore: number;
-  trendScore: number;
-  decayScore: number;
-}
+import type { MarketData, HistoricalData, EntryScore } from '@/types/market-data';
 
 interface UseMarketDataReturn {
   marketData: MarketData | null;
