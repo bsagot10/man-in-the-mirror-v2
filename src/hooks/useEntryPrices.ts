@@ -34,7 +34,7 @@ interface UseEntryPricesReturn {
   error: string | null;
   actualDate: string | null;
   fetchPrices: (date: string) => Promise<void>;
-  setPricesManually: (prices: EntryPrices) => void;
+  setPricesManually: (prices: EntryPrices, actualDate?: string) => void;
   clearPrices: () => void;
 }
 
@@ -121,8 +121,9 @@ export function useEntryPrices(): UseEntryPricesReturn {
   /**
    * Set prices manually (used for "Update" button with current prices)
    */
-  const setPricesManually = useCallback((newPrices: EntryPrices): void => {
+  const setPricesManually = useCallback((newPrices: EntryPrices, newActualDate?: string): void => {
     setPrices(newPrices);
+    if (newActualDate !== undefined) setActualDate(newActualDate);
 
     // Persist to localStorage
     try {

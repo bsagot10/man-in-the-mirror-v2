@@ -176,6 +176,12 @@ export function useDashboard(): DashboardState {
   // Update positions when market data changes
   useEffect(() => {
     if (marketData && positionActive) {
+      const hasEntryPrices = historicalEntryPrices || storedEntryPrices;
+      // Don't show positions with fake entry prices when historical fetch failed
+      if (historicalPricesError && !hasEntryPrices) {
+        setPositions([]);
+        return;
+      }
       const tqqqEntry = historicalEntryPrices?.tqqq ?? storedEntryPrices?.tqqq ?? marketData.tqqq.currentPrice;
       const sqqqEntry = historicalEntryPrices?.sqqq ?? storedEntryPrices?.sqqq ?? marketData.sqqq.currentPrice;
       if (historicalEntryPrices && !storedEntryPrices) setStoredEntryPrices(historicalEntryPrices);
@@ -188,7 +194,7 @@ export function useDashboard(): DashboardState {
     } else if (!positionActive) {
       setPositions([]);
     }
-  }, [marketData, positionActive, positionEntryDate, historicalEntryPrices, storedEntryPrices, storedShares, historicalActualDate]);
+  }, [marketData, positionActive, positionEntryDate, historicalEntryPrices, storedEntryPrices, storedShares, historicalActualDate, historicalPricesError]);
 
   // Derived values — undefined when market data is unavailable
   const vixValue = marketData?.vix.currentPrice;

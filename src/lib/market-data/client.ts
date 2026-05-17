@@ -840,6 +840,38 @@ export class MarketDataClient {
   }> {
     const LOOKBACK_DAYS = 7;
 
+    // Reusable helper: find closest trading day ≤ targetDate in a data set
+    const findClosest = (data: HistoricalDataPoint[], target: string): HistoricalDataPoint | null => {
+      if (!data || data.length === 0) return null;
+      const exact = data.find((d) => d.date === target);
+      if (exact) return exact;
+      const targetMs = new Date(target + 'T00:00:00Z').getTime();
+      let closest: HistoricalDataPoint | null = null;
+      let closestDiff = Infinity;
+      for (const point of data) {
+        const diff = targetMs - new Date(point.date + 'T00:00:00Z').getTime();
+        if (diff >= 0 && diff < closestDiff) { closestDiff = diff; closest = point; }
+      }
+      return closest;
+    };
+
+    // Check 30-day historical cache first — avoids a fresh Yahoo fetch and 429s
+    if (this.cache.historicalData && this.cache.historicalTimestamp) {
+      const { tqqq: cachedTqqq, sqqq: cachedSqqq } = this.cache.historicalData;
+      const earliest = cachedTqqq[0]?.date ?? cachedSqqq[0]?.date;
+      const latest = cachedTqqq[cachedTqqq.length - 1]?.date ?? cachedSqqq[cachedSqqq.length - 1]?.date;
+      if (earliest && latest && targetDate >= earliest && targetDate <= latest) {
+        const tqqqPrice = findClosest(cachedTqqq, targetDate);
+        const sqqqPrice = findClosest(cachedSqqq, targetDate);
+        return {
+          tqqq: tqqqPrice?.close ?? null,
+          sqqq: sqqqPrice?.close ?? null,
+          actualDate: tqqqPrice?.date ?? sqqqPrice?.date ?? null,
+        };
+      }
+    }
+
+    // Date is outside cached window — fetch a narrow range from the API
     const target = new Date(targetDate + 'T00:00:00Z');
     const startDate = new Date(target);
     startDate.setDate(startDate.getDate() - LOOKBACK_DAYS);
@@ -851,36 +883,8 @@ export class MarketDataClient {
       this.fetchSymbolHistory(SYMBOLS.SQQQ, startDate, endDate),
     ]);
 
-    // Find the closest trading day to target date (prefer earlier dates)
-    const findClosestDate = (
-      data: HistoricalDataPoint[],
-      target: string
-    ): HistoricalDataPoint | null => {
-      if (!data || data.length === 0) return null;
-
-      // Try exact match first
-      const exact = data.find((d) => d.date === target);
-      if (exact) return exact;
-
-      // Find closest earlier date
-      const targetTime = new Date(target + 'T00:00:00Z').getTime();
-      let closest: HistoricalDataPoint | null = null;
-      let closestDiff = Infinity;
-
-      for (const point of data) {
-        const pointTime = new Date(point.date + 'T00:00:00Z').getTime();
-        const diff = targetTime - pointTime;
-        if (diff >= 0 && diff < closestDiff) {
-          closestDiff = diff;
-          closest = point;
-        }
-      }
-
-      return closest;
-    };
-
-    const tqqqPrice = findClosestDate(tqqqData, targetDate);
-    const sqqqPrice = findClosestDate(sqqqData, targetDate);
+    const tqqqPrice = findClosest(tqqqData, targetDate);
+    const sqqqPrice = findClosest(sqqqData, targetDate);
 
     return {
       tqqq: tqqqPrice?.close ?? null,
