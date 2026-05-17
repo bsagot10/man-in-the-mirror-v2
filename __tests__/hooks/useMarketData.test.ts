@@ -336,6 +336,65 @@ describe('useMarketData Hook', () => {
     });
   });
 
+  describe('Partial Success', () => {
+    it('populates historical and entry score when only market-data endpoint fails', async () => {
+      mockFetch.mockImplementation((url: string) => {
+        if (url === '/api/market-data') {
+          return Promise.resolve({ ok: false, status: 500 });
+        }
+        if (url === '/api/historical-data') {
+          return Promise.resolve({
+            ok: true,
+            json: () => Promise.resolve(mockHistoricalDataResponse),
+          });
+        }
+        if (url === '/api/entry-score') {
+          return Promise.resolve({
+            ok: true,
+            json: () => Promise.resolve(mockEntryScoreResponse),
+          });
+        }
+        return Promise.reject(new Error('Unknown URL'));
+      });
+
+      const { result } = renderHook(() => useMarketData());
+
+      await waitFor(() => {
+        expect(result.current.loading).toBe(false);
+      });
+
+      expect(result.current.marketData).toBeNull();        // market-data failed
+      expect(result.current.historicalData).not.toBeNull(); // still populated
+      expect(result.current.entryScore).not.toBeNull();     // still populated
+      expect(result.current.error).toBeNull();              // not all three failed
+    });
+  });
+
+  describe('Unmount Safety', () => {
+    it('does not update state after unmount', async () => {
+      let resolveAll!: (value: unknown) => void;
+      const pending = new Promise(resolve => { resolveAll = resolve; });
+
+      mockFetch.mockReturnValue(pending);
+
+      const { result, unmount } = renderHook(() => useMarketData());
+
+      expect(result.current.loading).toBe(true);
+
+      // Unmount while all three fetches are still pending
+      unmount();
+
+      // Resolving after unmount — ignore flag must prevent state updates
+      await act(async () => {
+        resolveAll({ ok: true, json: () => Promise.resolve(mockMarketDataResponse) });
+        await Promise.resolve();
+      });
+
+      // marketData remains null — setMarketData was blocked by ignore flag
+      expect(result.current.marketData).toBeNull();
+    });
+  });
+
   describe('Refresh Functionality', () => {
     it('provides refresh function', async () => {
       mockFetch.mockImplementation((url: string) => {
