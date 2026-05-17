@@ -165,6 +165,7 @@ export default function Dashboard() {
           sqqqPrice={sqqqPrice}
           tqqqStop={tqqqStop}
           sqqqStop={sqqqStop}
+          positionActive={positionActive}
           portfolioMetrics={portfolioMetrics}
           positions={positions}
           positionSizing={positionSizing}

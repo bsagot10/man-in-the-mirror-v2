@@ -32,6 +32,7 @@ export interface LeftColumnProps {
   sqqqPrice: number | undefined;
   tqqqStop: string | undefined;
   sqqqStop: string | undefined;
+  positionActive: boolean;
   portfolioMetrics: PortfolioMetrics;
   positions: Position[];
   positionSizing: PositionSizing;
@@ -56,6 +57,7 @@ export function LeftColumn({
   sqqqPrice,
   tqqqStop,
   sqqqStop,
+  positionActive,
   portfolioMetrics,
 }: LeftColumnProps) {
   return (
@@ -64,7 +66,9 @@ export function LeftColumn({
       <div className="ghibli-card">
         <div className="card-header">
           <h2>📁 ACCOUNT INFORMATION</h2>
-          <span className="status-badge active">● Active</span>
+          <span className={`status-badge ${positionActive ? 'active' : 'inactive'}`}>
+            {positionActive ? '● Active' : '○ Inactive'}
+          </span>
         </div>
         <div className="card-content">
           <div className="info-grid">
