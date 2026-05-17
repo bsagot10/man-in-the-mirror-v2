@@ -31,9 +31,9 @@ export interface RightColumnProps {
   loading: boolean;
   positionSizing: PositionSizing;
   committedSizing: PositionSizing | null;
-  vixValue: number;
-  tqqqPrice: number;
-  sqqqPrice: number;
+  vixValue: number | undefined;
+  tqqqPrice: number | undefined;
+  sqqqPrice: number | undefined;
 }
 
 // ============================================================================
@@ -193,10 +193,10 @@ export function RightColumn({
           <div className="recommendations">
             <p>Based on current market conditions:</p>
             <ul>
-              <li>VIX: <strong>{vixValue.toFixed(1)}</strong> ({effectiveSizing.vixRegimeLabel})</li>
+              <li>VIX: <strong>{vixValue !== undefined ? vixValue.toFixed(1) : '—'}</strong> ({effectiveSizing.vixRegimeLabel})</li>
               <li>Allocation: <strong>{(effectiveSizing.allocationPercent * 100).toFixed(0)}%</strong> of account</li>
-              <li>TQQQ: Short <strong>{effectiveSizing.tqqqShares}</strong> shares @ ${tqqqPrice.toFixed(2)}</li>
-              <li>SQQQ: Short <strong>{effectiveSizing.sqqqShares}</strong> shares @ ${sqqqPrice.toFixed(2)}</li>
+              <li>TQQQ: Short <strong>{effectiveSizing.tqqqShares}</strong> shares @ ${tqqqPrice !== undefined ? tqqqPrice.toFixed(2) : '—'}</li>
+              <li>SQQQ: Short <strong>{effectiveSizing.sqqqShares}</strong> shares @ ${sqqqPrice !== undefined ? sqqqPrice.toFixed(2) : '—'}</li>
               <li>Total Investment: <strong>${effectiveSizing.totalInvestment.toFixed(2)}</strong></li>
               <li>Margin Required: <strong>${effectiveSizing.marginRequired.toFixed(2)}</strong></li>
             </ul>

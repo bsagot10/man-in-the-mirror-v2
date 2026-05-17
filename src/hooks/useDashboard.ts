@@ -66,11 +66,11 @@ export interface DashboardState {
   vixChartData: { date: string; close: number }[];
   tqqqChartData: { date: string; close: number }[];
   sqqqChartData: { date: string; close: number }[];
-  vixValue: number;
-  tqqqPrice: number;
-  sqqqPrice: number;
-  tqqqStop: string;
-  sqqqStop: string;
+  vixValue: number | undefined;
+  tqqqPrice: number | undefined;
+  sqqqPrice: number | undefined;
+  tqqqStop: string | undefined;
+  sqqqStop: string | undefined;
   positionSizing: PositionSizing;
   portfolioMetrics: PortfolioMetrics;
 
@@ -190,12 +190,12 @@ export function useDashboard(): DashboardState {
     }
   }, [marketData, positionActive, positionEntryDate, historicalEntryPrices, storedEntryPrices, storedShares, historicalActualDate]);
 
-  // Derived values
-  const vixValue = marketData?.vix.currentPrice || 17.2;
-  const tqqqPrice = marketData?.tqqq.currentPrice || 53.37;
-  const sqqqPrice = marketData?.sqqq.currentPrice || 69.97;
-  const tqqqStop = (tqqqPrice * 1.15).toFixed(2);
-  const sqqqStop = (sqqqPrice * 1.15).toFixed(2);
+  // Derived values — undefined when market data is unavailable
+  const vixValue = marketData?.vix.currentPrice;
+  const tqqqPrice = marketData?.tqqq.currentPrice;
+  const sqqqPrice = marketData?.sqqq.currentPrice;
+  const tqqqStop = tqqqPrice !== undefined ? (tqqqPrice * 1.15).toFixed(2) : undefined;
+  const sqqqStop = sqqqPrice !== undefined ? (sqqqPrice * 1.15).toFixed(2) : undefined;
   const vixRegime = marketData ? determineVixRegime(marketData.vix.currentPrice) : undefined;
   const marketTrend = marketData ? determineMarketTrend(marketData.qqq.changePercent) : undefined;
 
@@ -207,7 +207,7 @@ export function useDashboard(): DashboardState {
     historicalData?.sqqq.map((d) => ({ date: d.date, close: d.close })) || [], [historicalData]);
 
   const positionSizing = useMemo(() =>
-    calculatePositionSizing(accountSize, vixValue, tqqqPrice, sqqqPrice),
+    calculatePositionSizing(accountSize, vixValue ?? 0, tqqqPrice ?? 0, sqqqPrice ?? 0),
     [accountSize, vixValue, tqqqPrice, sqqqPrice]);
 
   const portfolioMetrics = useMemo((): PortfolioMetrics => {

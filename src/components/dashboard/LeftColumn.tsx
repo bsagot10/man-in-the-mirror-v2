@@ -28,10 +28,10 @@ export interface LeftColumnProps {
   marketData: { vix: { currentPrice: number } } | null;
   vixRegime: VixRegime | undefined;
   marketTrend: MarketTrend | undefined;
-  tqqqPrice: number;
-  sqqqPrice: number;
-  tqqqStop: string;
-  sqqqStop: string;
+  tqqqPrice: number | undefined;
+  sqqqPrice: number | undefined;
+  tqqqStop: string | undefined;
+  sqqqStop: string | undefined;
   portfolioMetrics: PortfolioMetrics;
   positions: Position[];
   positionSizing: PositionSizing;
@@ -129,13 +129,13 @@ export function LeftColumn({
           <div className="risk-grid">
             <div className="risk-item">
               <label>TQQQ Stop Loss</label>
-              <span className="value negative">${tqqqStop}</span>
-              <span className="sub-label">Current: ${tqqqPrice.toFixed(2)}</span>
+              <span className="value negative">${tqqqStop ?? '—'}</span>
+              <span className="sub-label">Current: ${tqqqPrice !== undefined ? tqqqPrice.toFixed(2) : '—'}</span>
             </div>
             <div className="risk-item">
               <label>SQQQ Stop Loss</label>
-              <span className="value negative">${sqqqStop}</span>
-              <span className="sub-label">Current: ${sqqqPrice.toFixed(2)}</span>
+              <span className="value negative">${sqqqStop ?? '—'}</span>
+              <span className="sub-label">Current: ${sqqqPrice !== undefined ? sqqqPrice.toFixed(2) : '—'}</span>
             </div>
           </div>
         </div>

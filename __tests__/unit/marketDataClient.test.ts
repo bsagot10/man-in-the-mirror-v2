@@ -223,8 +223,8 @@ describe('MarketDataClient', () => {
     it('handles API errors gracefully', async () => {
       mockQuote.mockRejectedValue(new Error('API Error'));
 
-      // Should not throw, should return cached or empty data
-      await expect(client.fetchCurrentData()).resolves.toBeDefined();
+      // Throws when all sources fail and no cache is available
+      await expect(client.fetchCurrentData()).rejects.toThrow();
     });
 
     it('includes all required fields in symbol data', async () => {
@@ -931,7 +931,8 @@ describe('Retry with Exponential Backoff', () => {
     const testClient = new MarketDataClient();
     testClient.clearCache();
 
-    await testClient.fetchCurrentData();
+    // Throws when all sources fail with no cache
+    await expect(testClient.fetchCurrentData()).rejects.toThrow();
 
     // Should have only called once per symbol (no retries for 429)
     expect(mockQuote.mock.calls.filter(call => call[0] === 'TQQQ')).toHaveLength(1);
@@ -948,7 +949,8 @@ describe('Retry with Exponential Backoff', () => {
     const testClient = new MarketDataClient();
     testClient.clearCache();
 
-    await testClient.fetchCurrentData();
+    // Throws when all sources fail with no cache
+    await expect(testClient.fetchCurrentData()).rejects.toThrow();
 
     // Should have only called once per symbol (no retries for 404)
     expect(mockQuote.mock.calls.filter(call => call[0] === 'TQQQ')).toHaveLength(1);
