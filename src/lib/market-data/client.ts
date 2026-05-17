@@ -1067,7 +1067,7 @@ export class MarketDataClient {
    * Check if US market is currently open.
    *
    * Market hours: 9:30 AM - 4:00 PM ET
-   * Closed on weekends
+   * Closed on weekends and NYSE holidays
    */
   isMarketOpen(): boolean {
     const now = new Date();
@@ -1080,6 +1080,37 @@ export class MarketDataClient {
     // Check if weekend (0 = Sunday, 6 = Saturday)
     const dayOfWeek = estTime.getDay();
     if (dayOfWeek === 0 || dayOfWeek === 6) {
+      return false;
+    }
+
+    // NYSE holidays 2026-2027 (YYYY-MM-DD, ET)
+    const NYSE_HOLIDAYS = new Set([
+      // 2026
+      '2026-01-01', // New Year's Day
+      '2026-01-19', // MLK Day
+      '2026-02-16', // Presidents' Day
+      '2026-04-03', // Good Friday
+      '2026-05-25', // Memorial Day
+      '2026-07-03', // Independence Day (observed)
+      '2026-09-07', // Labor Day
+      '2026-11-26', // Thanksgiving
+      '2026-12-25', // Christmas
+      // 2027
+      '2027-01-01', // New Year's Day
+      '2027-01-18', // MLK Day
+      '2027-02-15', // Presidents' Day
+      '2027-03-26', // Good Friday
+      '2027-05-31', // Memorial Day
+      '2027-07-05', // Independence Day (observed)
+      '2027-09-06', // Labor Day
+      '2027-11-25', // Thanksgiving
+      '2027-12-24', // Christmas (observed)
+    ]);
+
+    const month = String(estTime.getMonth() + 1).padStart(2, '0');
+    const day = String(estTime.getDate()).padStart(2, '0');
+    const dateStr = `${estTime.getFullYear()}-${month}-${day}`;
+    if (NYSE_HOLIDAYS.has(dateStr)) {
       return false;
     }
 
