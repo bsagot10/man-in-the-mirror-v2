@@ -308,7 +308,7 @@ describe('useMarketData Hook', () => {
         expect(result.current.error).not.toBeNull();
       });
 
-      expect(result.current.error).toContain('Network error');
+      expect(result.current.error).toContain('All market data sources failed');
     });
 
     it('sets error for non-success response', async () => {

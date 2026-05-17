@@ -303,7 +303,7 @@ describe('Dashboard Page', () => {
 
     it('retries fetch on retry button click', async () => {
       const user = userEvent.setup();
-      mockFetch.mockRejectedValueOnce(new Error('Network error'));
+      mockFetch.mockRejectedValue(new Error('Network error'));
 
       render(<Dashboard />);
 

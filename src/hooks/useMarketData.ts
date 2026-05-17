@@ -79,60 +79,65 @@ export function useMarketData(): UseMarketDataReturn {
   const [error, setError] = useState<string | null>(null);
   const [marketOpen, setMarketOpen] = useState(false);
   const [lastUpdated, setLastUpdated] = useState<string | null>(null);
+  const [refreshTrigger, setRefreshTrigger] = useState(0);
 
-  const fetchAllData = useCallback(async () => {
-    setLoading(true);
-    setError(null);
+  useEffect(() => {
+    let ignore = false;
 
-    try {
-      // Fetch all endpoints in parallel
-      const [marketResponse, historicalResponse, entryScoreResponse] = await Promise.all([
+    async function fetchData() {
+      if (!ignore) setLoading(true);
+      if (!ignore) setError(null);
+
+      const [marketResult, historicalResult, entryScoreResult] = await Promise.allSettled([
         fetch('/api/market-data'),
         fetch('/api/historical-data'),
         fetch('/api/entry-score'),
       ]);
 
-      // Check for errors
-      if (!marketResponse.ok) {
-        throw new Error(`Market data fetch failed: ${marketResponse.status}`);
-      }
-      if (!historicalResponse.ok) {
-        throw new Error(`Historical data fetch failed: ${historicalResponse.status}`);
-      }
-      if (!entryScoreResponse.ok) {
-        throw new Error(`Entry score fetch failed: ${entryScoreResponse.status}`);
+      if (ignore) return;
+
+      // Market data — partial failure leaves other sections intact
+      if (marketResult.status === 'fulfilled' && marketResult.value.ok) {
+        const json = await marketResult.value.json();
+        if (!ignore && json.success) {
+          setMarketData(json.marketData);
+          setMarketOpen(json.marketOpen);
+          setLastUpdated(json.timestamp);
+        }
       }
 
-      // Parse responses
-      const marketJson = await marketResponse.json();
-      const historicalJson = await historicalResponse.json();
-      const entryScoreJson = await entryScoreResponse.json();
+      if (!ignore) {
+        // Historical data
+        if (historicalResult.status === 'fulfilled' && historicalResult.value.ok) {
+          const json = await historicalResult.value.json();
+          if (!ignore && json.success) setHistoricalData(json.data);
+        }
 
-      // Update state
-      if (marketJson.success) {
-        setMarketData(marketJson.marketData);
-        setMarketOpen(marketJson.marketOpen);
-        setLastUpdated(marketJson.timestamp);
-      }
+        // Entry score
+        if (entryScoreResult.status === 'fulfilled' && entryScoreResult.value.ok) {
+          const json = await entryScoreResult.value.json();
+          if (!ignore && json.success) setEntryScore(json.entryScore);
+        }
 
-      if (historicalJson.success) {
-        setHistoricalData(historicalJson.data);
-      }
+        // Report error only if all three failed
+        const allFailed = [marketResult, historicalResult, entryScoreResult].every(
+          r => r.status === 'rejected' || !r.value.ok
+        );
+        if (allFailed) {
+          setError('All market data sources failed');
+        }
 
-      if (entryScoreJson.success) {
-        setEntryScore(entryScoreJson.entryScore);
+        setLoading(false);
       }
-    } catch (err) {
-      setError(err instanceof Error ? err.message : 'Unknown error occurred');
-    } finally {
-      setLoading(false);
     }
-  }, []);
 
-  // Fetch data on mount
-  useEffect(() => {
-    fetchAllData();
-  }, [fetchAllData]);
+    fetchData();
+    return () => { ignore = true; };
+  }, [refreshTrigger]);
+
+  const refresh = useCallback(async () => {
+    setRefreshTrigger(c => c + 1);
+  }, []);
 
   return {
     marketData,
@@ -142,7 +147,7 @@ export function useMarketData(): UseMarketDataReturn {
     error,
     marketOpen,
     lastUpdated,
-    refresh: fetchAllData,
+    refresh,
   };
 }
 
