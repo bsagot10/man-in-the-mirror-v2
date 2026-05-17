@@ -85,7 +85,8 @@ export function BaseChart({
   if (loading) {
     return (
       <div
-        className={`h-[${height}px] flex items-center justify-center ${className}`}
+        className={`flex items-center justify-center ${className}`}
+        style={{ height }}
         role="status"
         aria-label={loadingMessage}
       >
@@ -98,7 +99,8 @@ export function BaseChart({
   if (error) {
     return (
       <div
-        className={`h-[${height}px] flex items-center justify-center ${className}`}
+        className={`flex items-center justify-center ${className}`}
+        style={{ height }}
         role="alert"
       >
         <div className="text-red-500">{error}</div>
@@ -110,7 +112,8 @@ export function BaseChart({
   if (isEmpty) {
     return (
       <div
-        className={`h-[${height}px] flex items-center justify-center ${className}`}
+        className={`flex items-center justify-center ${className}`}
+        style={{ height }}
         aria-label={emptyMessage}
       >
         <div className="text-warm-600">{emptyMessage}</div>
