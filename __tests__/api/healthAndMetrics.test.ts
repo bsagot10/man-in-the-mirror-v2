@@ -275,7 +275,7 @@ describe('Health API', () => {
 
       expect(response.status).toBe(503);
       expect(data.status).toBe('unhealthy');
-      expect(data.error).toBe('Failed to get metrics');
+      expect(data.error).toBe('Internal server error');
     });
 
     it('includes timestamp in error response', async () => {
@@ -298,7 +298,7 @@ describe('Health API', () => {
       const data = await response.json();
 
       expect(response.status).toBe(503);
-      expect(data.error).toBe('Unknown error');
+      expect(data.error).toBe('Internal server error');
     });
   });
 });
@@ -357,7 +357,7 @@ describe('Metrics API', () => {
 
       expect(response.status).toBe(500);
       expect(data.success).toBe(false);
-      expect(data.error).toBe('Metrics unavailable');
+      expect(data.error).toBe('Internal server error');
     });
 
     it('handles non-Error objects in catch block', async () => {
@@ -370,7 +370,7 @@ describe('Metrics API', () => {
 
       expect(response.status).toBe(500);
       expect(data.success).toBe(false);
-      expect(data.error).toBe('Unknown error');
+      expect(data.error).toBe('Internal server error');
     });
   });
 });
