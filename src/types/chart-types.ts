@@ -108,6 +108,8 @@ export function formatPnl(pnl: number): string {
 export function calculateDaysActive(entryDate: string): number {
   const entry = new Date(entryDate);
   const today = new Date();
-  const diffTime = Math.abs(today.getTime() - entry.getTime());
-  return Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+  // Clamp to 0: the date picker allows future entry dates, which must not
+  // show positive "days active"
+  const diffTime = today.getTime() - entry.getTime();
+  return Math.max(0, Math.ceil(diffTime / (1000 * 60 * 60 * 24)));
 }

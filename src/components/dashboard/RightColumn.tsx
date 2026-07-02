@@ -212,12 +212,15 @@ export function RightColumn({
         <div className="card-content">
           <div className="implementation-guide">
             <h4>Current Market Assessment:</h4>
+            {/* Signal is computed on the UNROUNDED total (strict > 60/40) while the
+                displayed total is rounded — wording must not assert an arithmetic
+                relation the rounded number could contradict (e.g. "60 is above 60") */}
             {entryScore?.signal === 'ENTER' ? (
-              <p>✅ <strong>ENTER</strong> - Entry score ({entryScore.total}/90) is above threshold of 60</p>
+              <p>✅ <strong>ENTER</strong> - Entry score ({entryScore.total}/90) — entry conditions met (threshold 60)</p>
             ) : entryScore?.signal === 'WATCH' ? (
-              <p>👀 <strong>WATCH</strong> - Entry score ({entryScore.total}/90) approaching threshold of 60</p>
+              <p>👀 <strong>WATCH</strong> - Entry score ({entryScore.total}/90) — approaching entry threshold (60)</p>
             ) : (
-              <p>⚠️ <strong>WAIT</strong> - Entry score ({entryScore?.total ?? 0}/90) is below threshold of 60</p>
+              <p>⚠️ <strong>WAIT</strong> - Entry score ({entryScore?.total ?? 0}/90) — below entry threshold (60)</p>
             )}
             <h4>When conditions are favorable:</h4>
             <ol>

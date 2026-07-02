@@ -146,6 +146,19 @@ describe('EntryScoreDisplay Component', () => {
       expect(screen.getByTestId('total-score')).toHaveTextContent('0');
     });
 
+    it('rounds calculated total when decay score is fractional', () => {
+      // decayScore carries 2 decimals from the API; fallback sum must not
+      // render an unrounded value like "60.41"
+      render(
+        <EntryScoreDisplay
+          volatilityScore={30}
+          trendScore={30}
+          decayScore={0.41}
+        />
+      );
+      expect(screen.getByTestId('total-score')).toHaveTextContent(/^60$/);
+    });
+
     it('applies green color for high total (> 60)', () => {
       render(<EntryScoreDisplay totalScore={75} />);
       const totalElement = screen.getByTestId('total-score');

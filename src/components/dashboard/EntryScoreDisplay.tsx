@@ -118,8 +118,8 @@ export function EntryScoreDisplay({
   error,
   elevated = false,
 }: EntryScoreDisplayProps) {
-  // Calculate total if not provided
-  const calculatedTotal = totalScore ?? volatilityScore + trendScore + decayScore;
+  // Calculate total if not provided (rounded — decayScore carries 2 decimals)
+  const calculatedTotal = totalScore ?? Math.round(volatilityScore + trendScore + decayScore);
 
   if (error) {
     return (

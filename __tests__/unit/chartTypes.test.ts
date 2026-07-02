@@ -270,6 +270,13 @@ describe('calculateDaysActive', () => {
       const result = calculateDaysActive('2023-01-15');
       expect(result).toBe(365);
     });
+
+    it('returns 0 for a future entry date', () => {
+      // The date picker allows future dates; a position can't have been
+      // active for positive days before it was entered
+      const result = calculateDaysActive('2024-01-18');
+      expect(result).toBe(0);
+    });
   });
 
   describe('Date format handling', () => {

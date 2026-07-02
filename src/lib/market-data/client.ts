@@ -270,6 +270,30 @@ const MARKET_OPEN_MINUTE = 30;
 const MARKET_CLOSE_HOUR = 16;
 const MARKET_CLOSE_MINUTE = 0;
 
+// NYSE holidays 2026-2027 (YYYY-MM-DD, ET)
+const NYSE_HOLIDAYS = new Set([
+  // 2026
+  '2026-01-01', // New Year's Day
+  '2026-01-19', // MLK Day
+  '2026-02-16', // Presidents' Day
+  '2026-04-03', // Good Friday
+  '2026-05-25', // Memorial Day
+  '2026-07-03', // Independence Day (observed)
+  '2026-09-07', // Labor Day
+  '2026-11-26', // Thanksgiving
+  '2026-12-25', // Christmas
+  // 2027
+  '2027-01-01', // New Year's Day
+  '2027-01-18', // MLK Day
+  '2027-02-15', // Presidents' Day
+  '2027-03-26', // Good Friday
+  '2027-05-31', // Memorial Day
+  '2027-07-05', // Independence Day (observed)
+  '2027-09-06', // Labor Day
+  '2027-11-25', // Thanksgiving
+  '2027-12-24', // Christmas (observed)
+]);
+
 
 // ============================================================================
 // Polygon.io API (primary source for ETF quotes and history)
@@ -300,11 +324,14 @@ async function fetchPolygonQuote(symbol: string): Promise<SymbolQuote | 'unautho
     const response = await fetch(url, { signal: controller.signal });
     clearTimeout(timeoutId);
 
+    // Free-tier keys can't use the snapshot endpoint — Polygon rejects with
+    // HTTP 403 NOT_AUTHORIZED. Signal the caller to stop spending
+    // rate-limited calls on it (free tier = 5 req/min).
+    if (response.status === 403) return 'unauthorized';
     if (!response.ok) return null;
 
     const data: PolygonSnapshotResponse = await response.json();
-    // Free-tier keys can't use the snapshot endpoint — signal the caller to
-    // stop spending rate-limited calls on it (Polygon free tier = 5 req/min)
+    // Belt-and-braces: also honor NOT_AUTHORIZED delivered in a 200 body
     if (data?.status === 'NOT_AUTHORIZED') return 'unauthorized';
     const ticker = data?.ticker;
     if (!ticker?.day?.c) return null;
@@ -399,7 +426,8 @@ function buildQuoteFromDailyBars(bars: HistoricalDataPoint[]): SymbolQuote | nul
     change: Math.round((last.close - prev.close) * 100) / 100,
     changePercent: calculateChangePercent(last.close, prev.close),
     volume: last.volume,
-    timestamp: new Date().toISOString(),
+    // Delayed end-of-day data: carry the bar's date, not "now"
+    timestamp: `${last.date}T00:00:00.000Z`,
   };
 }
 
@@ -516,17 +544,20 @@ function alignVixToEndDate(
   // If already aligned or ahead, return as-is
   if (lastVixDate >= targetDate) return vixHistory;
 
-  // Generate missing trading days (skip weekends)
+  // Generate missing trading days (skip weekends and NYSE holidays).
+  // Dates are YYYY-MM-DD strings parsed as UTC midnight, so use UTC accessors
+  // throughout — local getDay()/setDate() shift the weekday in US timezones.
   const result = [...vixHistory];
   const currentDate = new Date(lastVixDate);
-  currentDate.setDate(currentDate.getDate() + 1);
+  currentDate.setUTCDate(currentDate.getUTCDate() + 1);
 
   while (currentDate <= targetDate) {
-    const dayOfWeek = currentDate.getDay();
-    // Skip weekends (0=Sunday, 6=Saturday)
-    if (dayOfWeek !== 0 && dayOfWeek !== 6) {
+    const dayOfWeek = currentDate.getUTCDay();
+    const dateStr = currentDate.toISOString().split('T')[0];
+    // Skip weekends (0=Sunday, 6=Saturday) and holidays
+    if (dayOfWeek !== 0 && dayOfWeek !== 6 && !NYSE_HOLIDAYS.has(dateStr)) {
       result.push({
-        date: currentDate.toISOString().split('T')[0],
+        date: dateStr,
         open: lastVix.close,
         high: lastVix.close,
         low: lastVix.close,
@@ -534,7 +565,7 @@ function alignVixToEndDate(
         volume: 0,
       });
     }
-    currentDate.setDate(currentDate.getDate() + 1);
+    currentDate.setUTCDate(currentDate.getUTCDate() + 1);
   }
 
   if (result.length > vixHistory.length) {
@@ -726,11 +757,8 @@ export class MarketDataClient {
 
       const data: CurrentMarketData = { vix, qqq, tqqq, sqqq };
 
-      // Update cache only if we have at least some valid data
-      if (!allFailed) {
-        this.cache.currentData = data;
-        this.cache.timestamp = Date.now();
-      }
+      this.cache.currentData = data;
+      this.cache.timestamp = Date.now();
 
       return data;
     } catch (error) {
@@ -1188,30 +1216,6 @@ export class MarketDataClient {
     if (dayOfWeek === 0 || dayOfWeek === 6) {
       return false;
     }
-
-    // NYSE holidays 2026-2027 (YYYY-MM-DD, ET)
-    const NYSE_HOLIDAYS = new Set([
-      // 2026
-      '2026-01-01', // New Year's Day
-      '2026-01-19', // MLK Day
-      '2026-02-16', // Presidents' Day
-      '2026-04-03', // Good Friday
-      '2026-05-25', // Memorial Day
-      '2026-07-03', // Independence Day (observed)
-      '2026-09-07', // Labor Day
-      '2026-11-26', // Thanksgiving
-      '2026-12-25', // Christmas
-      // 2027
-      '2027-01-01', // New Year's Day
-      '2027-01-18', // MLK Day
-      '2027-02-15', // Presidents' Day
-      '2027-03-26', // Good Friday
-      '2027-05-31', // Memorial Day
-      '2027-07-05', // Independence Day (observed)
-      '2027-09-06', // Labor Day
-      '2027-11-25', // Thanksgiving
-      '2027-12-24', // Christmas (observed)
-    ]);
 
     const month = String(estTime.getMonth() + 1).padStart(2, '0');
     const day = String(estTime.getDate()).padStart(2, '0');

@@ -5,7 +5,7 @@
  * Ported from: backend/data_collection.py
  */
 
-import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
+import { describe, it, expect, vi, beforeEach, afterEach, afterAll } from 'vitest';
 import {
   MarketDataClient,
   type CurrentMarketData,
@@ -40,6 +40,16 @@ vi.mock('yahoo-finance2', () => {
 // Get references to the mocks after module initialization
 let mockQuote: ReturnType<typeof vi.fn>;
 let mockHistorical: ReturnType<typeof vi.fn>;
+
+// Hermetic guard: no test in this file may hit the live network (FRED/Polygon
+// go through global.fetch). Tests needing specific behavior override it inline.
+const originalGlobalFetch = global.fetch;
+beforeEach(() => {
+  global.fetch = vi.fn().mockResolvedValue({ ok: false }) as unknown as typeof fetch;
+});
+afterAll(() => {
+  global.fetch = originalGlobalFetch;
+});
 
 describe('SYMBOLS constant', () => {
   it('includes all required trading symbols', () => {
@@ -225,8 +235,16 @@ describe('MarketDataClient', () => {
       // Block the FRED fallback too — this test must not hit the live network
       global.fetch = vi.fn().mockResolvedValue({ ok: false });
 
-      // Throws when all sources fail and no cache is available
-      await expect(client.fetchCurrentData()).rejects.toThrow();
+      // Fake timers: skip the real exponential-backoff sleeps in withRetry
+      vi.useFakeTimers();
+      try {
+        // Throws when all sources fail and no cache is available
+        const assertion = expect(client.fetchCurrentData()).rejects.toThrow();
+        await vi.advanceTimersByTimeAsync(15000);
+        await assertion;
+      } finally {
+        vi.useRealTimers();
+      }
     });
 
     it('includes all required fields in symbol data', async () => {
@@ -563,7 +581,8 @@ describe('Polygon primary with Yahoo fallback', () => {
     // Free-tier keys get NOT_AUTHORIZED on the snapshot endpoint but CAN read aggregates
     const mockFetch = vi.fn().mockImplementation((url: string) => {
       if (url.includes('/v2/snapshot/')) {
-        return Promise.resolve({ ok: true, json: () => Promise.resolve({ status: 'NOT_AUTHORIZED' }) });
+        // Polygon rejects free-tier snapshot calls with HTTP 403 (verified live)
+        return Promise.resolve({ ok: false, status: 403, json: () => Promise.resolve({ status: 'NOT_AUTHORIZED', message: 'You are not entitled to this data.' }) });
       }
       if (url.includes('/v2/aggs/')) {
         return Promise.resolve({
@@ -598,6 +617,8 @@ describe('Polygon primary with Yahoo fallback', () => {
     expect(result!.tqqq.currentPrice).toBe(85.80);
     expect(result!.tqqq.previousClose).toBe(84.00);
     expect(result!.tqqq.changePercent).toBeCloseTo(2.14, 1);
+    // Delayed aggregate data must carry the bar's date, not "now"
+    expect(result!.tqqq.timestamp).toBe('2025-06-28T00:00:00.000Z');
   });
 
   it('falls back to FRED for the current VIX quote when Yahoo fails', async () => {
@@ -642,7 +663,8 @@ describe('Polygon primary with Yahoo fallback', () => {
     const mockFetch = vi.fn().mockImplementation((url: string) => {
       if (url.includes('/v2/snapshot/')) {
         snapshotCalls++;
-        return Promise.resolve({ ok: true, json: () => Promise.resolve({ status: 'NOT_AUTHORIZED' }) });
+        // Polygon rejects free-tier snapshot calls with HTTP 403 (verified live)
+        return Promise.resolve({ ok: false, status: 403, json: () => Promise.resolve({ status: 'NOT_AUTHORIZED', message: 'You are not entitled to this data.' }) });
       }
       if (url.includes('/v2/aggs/')) {
         return Promise.resolve({
@@ -683,7 +705,8 @@ describe('Polygon primary with Yahoo fallback', () => {
     const aggsUrls: string[] = [];
     const mockFetch = vi.fn().mockImplementation((url: string) => {
       if (url.includes('/v2/snapshot/')) {
-        return Promise.resolve({ ok: true, json: () => Promise.resolve({ status: 'NOT_AUTHORIZED' }) });
+        // Polygon rejects free-tier snapshot calls with HTTP 403 (verified live)
+        return Promise.resolve({ ok: false, status: 403, json: () => Promise.resolve({ status: 'NOT_AUTHORIZED', message: 'You are not entitled to this data.' }) });
       }
       if (url.includes('/v2/aggs/')) {
         aggsUrls.push(url);
@@ -720,6 +743,46 @@ describe('Polygon primary with Yahoo fallback', () => {
     expect(tqqqAggsCalls).toBe(1);
     expect(result.tqqq.currentPrice).toBe(85.80);
     expect(result.tqqq.previousClose).toBe(84.00);
+  });
+
+  it('skips NYSE holidays and weekends when forward-filling VIX to the ETF end date', async () => {
+    // ETF bars end Mon 2026-07-06; VIX ends Wed 2026-07-01. The fill must add
+    // Thu 07-02 and Mon 07-06 only — Fri 07-03 is Independence Day (observed),
+    // 07-04/05 are the weekend.
+    const bar = (iso: string, close: number) => ({
+      t: new Date(`${iso}T00:00:00Z`).getTime(), o: close, h: close, l: close, c: close, v: 1000,
+    });
+    const mockFetch = vi.fn().mockImplementation((url: string) => {
+      if (url.includes('/v2/aggs/')) {
+        return Promise.resolve({
+          ok: true,
+          json: () => Promise.resolve({
+            status: 'DELAYED',
+            results: [bar('2026-07-01', 84), bar('2026-07-06', 85)],
+          }),
+        });
+      }
+      return Promise.resolve({ ok: false });
+    });
+    global.fetch = mockFetch;
+    mockHistorical.mockResolvedValue([
+      { date: new Date('2026-06-30T00:00:00Z'), open: 17.5, high: 17.5, low: 17.5, close: 17.5, volume: 0 },
+      { date: new Date('2026-07-01T00:00:00Z'), open: 18.25, high: 18.25, low: 18.25, close: 18.25, volume: 0 },
+    ]);
+
+    const { MarketDataClient } = await import('@/lib/market-data/client');
+    const testClient = new MarketDataClient();
+    testClient.clearCache();
+
+    const result = await testClient.fetchHistoricalData();
+
+    const vixDates = result.vix.map((d) => d.date);
+    expect(vixDates).toContain('2026-07-02');
+    expect(vixDates).not.toContain('2026-07-03'); // NYSE holiday
+    expect(vixDates).not.toContain('2026-07-04'); // Saturday
+    expect(vixDates).not.toContain('2026-07-05'); // Sunday
+    expect(vixDates).toContain('2026-07-06');
+    expect(result.vix[result.vix.length - 1].close).toBe(18.25);
   });
 });
 
@@ -1009,7 +1072,15 @@ describe('Enhanced Error Logging', () => {
     const error = new Error('Network error');
     mockHistorical.mockRejectedValue(error);
 
-    await client.fetchHistoricalData();
+    // Fake timers: skip the real exponential-backoff sleeps in withRetry
+    vi.useFakeTimers();
+    try {
+      const promise = client.fetchHistoricalData();
+      await vi.advanceTimersByTimeAsync(15000);
+      await promise;
+    } finally {
+      vi.useRealTimers();
+    }
 
     // Should log error with structured log format (uses structuredLog)
     expect(consoleErrorSpy).toHaveBeenCalledWith(
@@ -1081,7 +1152,12 @@ describe('Retry with Exponential Backoff', () => {
     const testClient = new MarketDataClient();
     testClient.clearCache();
 
-    const result = await testClient.fetchCurrentData();
+    // Fake timers: skip the real exponential-backoff sleeps in withRetry
+    vi.useFakeTimers();
+    const resultPromise = testClient.fetchCurrentData();
+    await vi.advanceTimersByTimeAsync(15000);
+    const result = await resultPromise;
+    vi.useRealTimers();
 
     // Should have succeeded after retries
     expect(result.tqqq.currentPrice).toBeGreaterThan(0);
