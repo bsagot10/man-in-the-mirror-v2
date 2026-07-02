@@ -222,6 +222,8 @@ describe('MarketDataClient', () => {
 
     it('handles API errors gracefully', async () => {
       mockQuote.mockRejectedValue(new Error('API Error'));
+      // Block the FRED fallback too — this test must not hit the live network
+      global.fetch = vi.fn().mockResolvedValue({ ok: false });
 
       // Throws when all sources fail and no cache is available
       await expect(client.fetchCurrentData()).rejects.toThrow();
@@ -556,6 +558,169 @@ describe('Polygon primary with Yahoo fallback', () => {
     // Yahoo should have been called as fallback for ETFs + once for VIX
     expect(mockQuote).toHaveBeenCalled();
   });
+
+  it('builds ETF quotes from Polygon daily aggregates when snapshot is unauthorized (free tier)', async () => {
+    // Free-tier keys get NOT_AUTHORIZED on the snapshot endpoint but CAN read aggregates
+    const mockFetch = vi.fn().mockImplementation((url: string) => {
+      if (url.includes('/v2/snapshot/')) {
+        return Promise.resolve({ ok: true, json: () => Promise.resolve({ status: 'NOT_AUTHORIZED' }) });
+      }
+      if (url.includes('/v2/aggs/')) {
+        return Promise.resolve({
+          ok: true,
+          json: () => Promise.resolve({
+            status: 'DELAYED',
+            results: [
+              { t: 1751000000000, o: 83, h: 84, l: 82, c: 84.00, v: 40000000 },
+              { t: 1751086400000, o: 84, h: 86, l: 83, c: 85.80, v: 50000000 },
+            ],
+          }),
+        });
+      }
+      if (url.includes('fred.stlouisfed.org')) {
+        // VIX comes from FRED when Yahoo is down
+        return Promise.resolve({ ok: true, text: () => Promise.resolve('DATE,VIXCLS\n2026-06-29,17.50\n2026-06-30,18.25\n') });
+      }
+      return Promise.resolve({ ok: false });
+    });
+    global.fetch = mockFetch;
+
+    // Yahoo unavailable (rate limited) — aggregates fallback must carry the quote
+    mockQuote.mockRejectedValue(new Error('Failed to get crumb, status 429'));
+
+    const { MarketDataClient } = await import('@/lib/market-data/client');
+    const testClient = new MarketDataClient();
+    testClient.clearCache();
+
+    const result = await testClient.fetchCurrentData().catch(() => null);
+
+    expect(result).not.toBeNull();
+    expect(result!.tqqq.currentPrice).toBe(85.80);
+    expect(result!.tqqq.previousClose).toBe(84.00);
+    expect(result!.tqqq.changePercent).toBeCloseTo(2.14, 1);
+  });
+
+  it('falls back to FRED for the current VIX quote when Yahoo fails', async () => {
+    const fredCsv = 'DATE,VIXCLS\n2026-06-29,17.50\n2026-06-30,18.25\n';
+    const mockFetch = vi.fn().mockImplementation((url: string) => {
+      if (url.includes('fred.stlouisfed.org')) {
+        return Promise.resolve({ ok: true, text: () => Promise.resolve(fredCsv) });
+      }
+      if (url.includes('/v2/snapshot/')) {
+        return Promise.resolve({
+          ok: true,
+          json: () => Promise.resolve({
+            status: 'OK',
+            ticker: {
+              day: { o: 85, h: 86, l: 84, c: 85.8, v: 50000000 },
+              prevDay: { c: 84 },
+              todaysChange: 1.8,
+              todaysChangePerc: 2.14,
+            },
+          }),
+        });
+      }
+      return Promise.resolve({ ok: false });
+    });
+    global.fetch = mockFetch;
+
+    // Yahoo fails for VIX (its only non-FRED source)
+    mockQuote.mockRejectedValue(new Error('Failed to get crumb, status 429'));
+
+    const { MarketDataClient } = await import('@/lib/market-data/client');
+    const testClient = new MarketDataClient();
+    testClient.clearCache();
+
+    const result = await testClient.fetchCurrentData();
+
+    expect(result.vix.currentPrice).toBe(18.25);
+    expect(result.vix.previousClose).toBe(17.50);
+  });
+
+  it('stops calling the snapshot endpoint after a NOT_AUTHORIZED response (free-tier call budget)', async () => {
+    let snapshotCalls = 0;
+    const mockFetch = vi.fn().mockImplementation((url: string) => {
+      if (url.includes('/v2/snapshot/')) {
+        snapshotCalls++;
+        return Promise.resolve({ ok: true, json: () => Promise.resolve({ status: 'NOT_AUTHORIZED' }) });
+      }
+      if (url.includes('/v2/aggs/')) {
+        return Promise.resolve({
+          ok: true,
+          json: () => Promise.resolve({
+            status: 'DELAYED',
+            results: [
+              { t: 1751000000000, o: 83, h: 84, l: 82, c: 84.00, v: 40000000 },
+              { t: 1751086400000, o: 84, h: 86, l: 83, c: 85.80, v: 50000000 },
+            ],
+          }),
+        });
+      }
+      if (url.includes('fred.stlouisfed.org')) {
+        return Promise.resolve({ ok: true, text: () => Promise.resolve('DATE,VIXCLS\n2026-06-29,17.50\n2026-06-30,18.25\n') });
+      }
+      return Promise.resolve({ ok: false });
+    });
+    global.fetch = mockFetch;
+    mockQuote.mockRejectedValue(new Error('Failed to get crumb, status 429'));
+
+    const { MarketDataClient } = await import('@/lib/market-data/client');
+    const testClient = new MarketDataClient();
+    testClient.clearCache();
+
+    await testClient.fetchCurrentData();
+    const callsAfterFirstRound = snapshotCalls;
+    expect(callsAfterFirstRound).toBeGreaterThan(0);
+
+    testClient.clearCache();
+    await testClient.fetchCurrentData();
+
+    // Second round must not touch the snapshot endpoint again
+    expect(snapshotCalls).toBe(callsAfterFirstRound);
+  });
+
+  it('reuses the shared historical cache for TQQQ/SQQQ quotes instead of extra Polygon calls', async () => {
+    const aggsUrls: string[] = [];
+    const mockFetch = vi.fn().mockImplementation((url: string) => {
+      if (url.includes('/v2/snapshot/')) {
+        return Promise.resolve({ ok: true, json: () => Promise.resolve({ status: 'NOT_AUTHORIZED' }) });
+      }
+      if (url.includes('/v2/aggs/')) {
+        aggsUrls.push(url);
+        return Promise.resolve({
+          ok: true,
+          json: () => Promise.resolve({
+            status: 'DELAYED',
+            results: [
+              { t: 1751000000000, o: 83, h: 84, l: 82, c: 84.00, v: 40000000 },
+              { t: 1751086400000, o: 84, h: 86, l: 83, c: 85.80, v: 50000000 },
+            ],
+          }),
+        });
+      }
+      if (url.includes('fred.stlouisfed.org')) {
+        return Promise.resolve({ ok: true, text: () => Promise.resolve('DATE,VIXCLS\n2026-06-29,17.50\n2026-06-30,18.25\n') });
+      }
+      return Promise.resolve({ ok: false });
+    });
+    global.fetch = mockFetch;
+    mockQuote.mockRejectedValue(new Error('Failed to get crumb, status 429'));
+    mockHistorical.mockRejectedValue(new Error('Failed to get crumb, status 429'));
+
+    const { MarketDataClient } = await import('@/lib/market-data/client');
+    const testClient = new MarketDataClient();
+    testClient.clearCache();
+
+    // Seed the shared 30-day historical cache (one aggs call per ETF)
+    await testClient.fetchHistoricalData();
+    // Quotes should reuse those bars rather than refetch aggregates
+    const result = await testClient.fetchCurrentData();
+
+    const tqqqAggsCalls = aggsUrls.filter((u) => u.includes('/ticker/TQQQ/')).length;
+    expect(tqqqAggsCalls).toBe(1);
+    expect(result.tqqq.currentPrice).toBe(85.80);
+    expect(result.tqqq.previousClose).toBe(84.00);
+  });
 });
 
 describe('CurrentMarketData type', () => {
@@ -696,7 +861,11 @@ describe('Polygon timeout and fallback', () => {
 
     const fetchPromise = testClient.fetchCurrentData();
 
-    // Advance timers past POLYGON_TIMEOUT_MS (8000ms)
+    // Advance timers past POLYGON_TIMEOUT_MS (8000ms) for each sequential
+    // Polygon attempt: snapshot → shared historical fetch → aggregates quote
+    await vi.advanceTimersByTimeAsync(9000);
+    await vi.advanceTimersByTimeAsync(9000);
+    await vi.advanceTimersByTimeAsync(9000);
     await vi.advanceTimersByTimeAsync(9000);
 
     const result = await fetchPromise;

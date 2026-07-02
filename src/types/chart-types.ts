@@ -62,12 +62,17 @@ interface PositionWithPnL extends Position {
 // ============================================================================
 
 /**
- * Calculate P&L for a position
+ * Calculate P&L for a position.
+ *
+ * SHORT convention: the Man in the Mirror strategy shorts both TQQQ and SQQQ
+ * to harvest leveraged-ETF decay, so a price DROP is profit. Matches the
+ * canonical MCP calculator (calculatePnL with isShort=true). Do not "fix"
+ * this back to long math.
  */
 export function calculatePositionPnL(position: Position): PositionWithPnL {
-  const pnl = (position.currentPrice - position.entryPrice) * position.shares;
+  const pnl = (position.entryPrice - position.currentPrice) * position.shares;
   const pnlPercent = position.entryPrice > 0
-    ? ((position.currentPrice - position.entryPrice) / position.entryPrice) * 100
+    ? ((position.entryPrice - position.currentPrice) / position.entryPrice) * 100
     : 0;
 
   return {

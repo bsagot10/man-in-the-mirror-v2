@@ -4,6 +4,35 @@ Next.js app for monitoring leveraged ETF decay trading opportunities. Tracks VIX
 
 **Stack**: Next.js 14 (App Router), React 18 + TypeScript, Tailwind CSS (Ghibli theme), Vitest + Testing Library, Plotly.js
 
+## Karpathy Coding Principles
+
+**Source:** Derived from [Andrej Karpathy's observations](https://x.com/karpathy/status/2015883857489522876) on common LLM coding mistakes.
+
+### 1. Think Before Coding
+- State assumptions explicitly — don't guess
+- Present multiple interpretations when ambiguous
+- Push back if a simpler approach exists
+- Stop and ask when confused
+
+### 2. Simplicity First
+- No features beyond what was asked
+- No abstractions for single-use code
+- No "flexibility" that wasn't requested
+- If 200 lines could be 50, rewrite it
+
+### 3. Surgical Changes
+- Don't "improve" adjacent code or formatting
+- Don't refactor things that aren't broken
+- Match existing style
+- Remove only imports/vars YOUR changes made unused
+
+### 4. Goal-Driven Execution
+- Define success criteria (tests, verification steps)
+- Transform "fix X" → "write test that reproduces X, then make it pass"
+- State a brief plan for multi-step tasks
+
+---
+
 ## Build Commands
 
 ```bash

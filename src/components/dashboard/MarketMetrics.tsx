@@ -160,7 +160,7 @@ export function MarketMetrics({
               data-testid="entry-score-value"
               className="metric-value text-3xl font-bold text-primary-green mt-1"
             >
-              {loading ? '...' : entryScore !== undefined ? `${entryScore}/110` : '-'}
+              {loading ? '...' : entryScore !== undefined ? `${entryScore}/90` : '-'}
             </div>
             <div
               data-testid="entry-signal"

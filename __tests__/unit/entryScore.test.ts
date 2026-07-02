@@ -15,17 +15,20 @@ import {
   type EntryScore,
 } from '@/lib/market-analysis/entryScore';
 
+// Scores aligned with the canonical MCP strategy config (calculator.ts):
+// VIX max 40; VIX >= 30 → 40, VIX >= 20 → 30 (0.75x), VIX < 20 → 0 (below entry threshold).
+// Regime LABELS keep the 4-tier display classification (Low/Moderate/High/Extreme).
 describe('classifyVolatility', () => {
-  it('classifies VIX >= 30 as Extreme with score 50', () => {
+  it('classifies VIX >= 30 as Extreme with score 40', () => {
     const result = classifyVolatility(30);
     expect(result.regime).toBe('Extreme');
-    expect(result.score).toBe(50);
+    expect(result.score).toBe(40);
   });
 
   it('classifies VIX 35 as Extreme', () => {
     const result = classifyVolatility(35);
     expect(result.regime).toBe('Extreme');
-    expect(result.score).toBe(50);
+    expect(result.score).toBe(40);
   });
 
   it('classifies VIX >= 20 but < 30 as High with score 30', () => {
@@ -40,16 +43,16 @@ describe('classifyVolatility', () => {
     expect(result.score).toBe(30);
   });
 
-  it('classifies VIX >= 15 but < 20 as Moderate with score 15', () => {
+  it('classifies VIX >= 15 but < 20 as Moderate with score 0 (below entry threshold)', () => {
     const result = classifyVolatility(17);
     expect(result.regime).toBe('Moderate');
-    expect(result.score).toBe(15);
+    expect(result.score).toBe(0);
   });
 
-  it('classifies VIX at exactly 15 as Moderate', () => {
+  it('classifies VIX at exactly 15 as Moderate with score 0', () => {
     const result = classifyVolatility(15);
     expect(result.regime).toBe('Moderate');
-    expect(result.score).toBe(15);
+    expect(result.score).toBe(0);
   });
 
   it('classifies VIX < 15 as Low with score 0', () => {
@@ -84,10 +87,12 @@ describe('classifyTrend', () => {
     expect(result.score).toBe(10);
   });
 
-  it('classifies QQQ change < -2% as Strong Downtrend with score 10', () => {
+  it('classifies QQQ change < -2% as Strong Downtrend with score 20', () => {
+    // MCP canon: only strong UPtrends get the low score (0.33x);
+    // downtrends still allow decay capture and score as mixed (0.67x)
     const result = classifyTrend(-2.5);
     expect(result.regime).toBe('Strong Downtrend');
-    expect(result.score).toBe(10);
+    expect(result.score).toBe(20);
   });
 
   it('classifies QQQ change between 1% and 2% as Mixed with score 20', () => {
@@ -109,25 +114,31 @@ describe('classifyTrend', () => {
   });
 });
 
+// Canonical MCP decay formula: per-ETF decay = leverage² × move² / 2 (move as
+// fraction), summed and scaled ×100, capped at 20. No inverse-correlation gate
+// (MCP does not gate either — decay accrues from any movement).
 describe('calculateDecayPotential', () => {
-  it('returns 30 for strong inverse correlation (>5%)', () => {
+  it('computes decay for symmetric 3% moves', () => {
+    // 9 × 0.03² / 2 = 0.00405 per ETF → 0.0081 total → ×100 = 0.81
     const score = calculateDecayPotential(3, -3);
-    expect(score).toBe(30);
+    expect(score).toBeCloseTo(0.81, 2);
   });
 
-  it('returns 20 for moderate inverse correlation (3-5%)', () => {
+  it('computes decay for symmetric 2% moves', () => {
+    // 9 × 0.02² / 2 = 0.0018 per ETF → 0.0036 total → ×100 = 0.36
     const score = calculateDecayPotential(2, -2);
-    expect(score).toBe(20);
+    expect(score).toBeCloseTo(0.36, 2);
   });
 
-  it('returns 10 for weak inverse correlation (<3%)', () => {
+  it('computes decay for asymmetric small moves', () => {
+    // 9 × 0.01²/2 + 9 × 0.005²/2 = 0.00045 + 0.0001125 → ×100 = 0.05625
     const score = calculateDecayPotential(1, -0.5);
-    expect(score).toBe(10);
+    expect(score).toBeCloseTo(0.06, 2);
   });
 
-  it('returns 0 when both move in same direction', () => {
+  it('accrues decay even when both move in the same direction', () => {
     const score = calculateDecayPotential(2, 2);
-    expect(score).toBe(0);
+    expect(score).toBeCloseTo(0.36, 2);
   });
 
   it('returns 0 when both are zero', () => {
@@ -135,9 +146,14 @@ describe('calculateDecayPotential', () => {
     expect(score).toBe(0);
   });
 
-  it('handles SQQQ positive and TQQQ negative', () => {
-    const score = calculateDecayPotential(-3, 3);
-    expect(score).toBe(30);
+  it('is direction-agnostic (uses absolute moves)', () => {
+    expect(calculateDecayPotential(-3, 3)).toBeCloseTo(calculateDecayPotential(3, -3), 10);
+  });
+
+  it('caps the decay score at 20', () => {
+    // 30% moves: 9 × 0.09 / 2 = 0.405 per ETF → 0.81 total → ×100 = 81 → cap 20
+    const score = calculateDecayPotential(30, -30);
+    expect(score).toBe(20);
   });
 });
 
@@ -150,8 +166,8 @@ describe('calculateEntryScore', () => {
     ...overrides,
   });
 
-  it('returns ENTER signal when score >= 70', () => {
-    // VIX >= 30 (50) + Sideways (30) = 80 + possible decay
+  it('returns ENTER signal when score > 60 (MCP buy threshold)', () => {
+    // VIX >= 30 (40) + Sideways (30) + decay(3,-3) ≈ 0.81 → 70.81 > 60
     const data = createMarketData({
       vix: { currentPrice: 30, changePercent: 5 },
       qqq: { currentPrice: 400, changePercent: 0.5 },
@@ -160,27 +176,26 @@ describe('calculateEntryScore', () => {
     });
 
     const result = calculateEntryScore(data);
-    expect(result.total).toBeGreaterThanOrEqual(70);
+    expect(result.total).toBe(71); // rounded for display
     expect(result.signal).toBe('ENTER');
   });
 
-  it('returns WATCH signal when score is 50-69', () => {
-    // VIX High (30) + Sideways (30) = 60
+  it('returns WATCH signal when score is in (40, 60]', () => {
+    // VIX High (30) + Mixed trend 1.5% (20) + decay(1,1) ≈ 0.09 → 50.09
     const data = createMarketData({
       vix: { currentPrice: 25, changePercent: 2 },
-      qqq: { currentPrice: 400, changePercent: 0.5 },
+      qqq: { currentPrice: 400, changePercent: 1.5 },
       tqqq: { currentPrice: 50, changePercent: 1 },
       sqqq: { currentPrice: 30, changePercent: 1 },
     });
 
     const result = calculateEntryScore(data);
-    expect(result.total).toBeGreaterThanOrEqual(50);
-    expect(result.total).toBeLessThan(70);
+    expect(result.total).toBe(50);
     expect(result.signal).toBe('WATCH');
   });
 
-  it('returns WAIT signal when score < 50', () => {
-    // VIX Low (0) + Strong trend (10) = 10
+  it('returns WAIT signal when score <= 40', () => {
+    // VIX Moderate (0, below entry threshold) + Strong Uptrend (10) + decay(5,5) ≈ 2.25 → 12.25
     const data = createMarketData({
       vix: { currentPrice: 15, changePercent: -1 },
       qqq: { currentPrice: 400, changePercent: 3 },
@@ -189,7 +204,20 @@ describe('calculateEntryScore', () => {
     });
 
     const result = calculateEntryScore(data);
-    expect(result.total).toBeLessThan(50);
+    expect(result.total).toBe(12);
+    expect(result.signal).toBe('WAIT');
+  });
+
+  it('returns WAIT below VIX 20 even in ideal sideways conditions', () => {
+    // Canon rule: VIX < 20 = no entry. Sideways (30) + tiny decay only → WAIT
+    const data = createMarketData({
+      vix: { currentPrice: 18, changePercent: 0 },
+      qqq: { currentPrice: 400, changePercent: 0.2 },
+      tqqq: { currentPrice: 50, changePercent: 0.5 },
+      sqqq: { currentPrice: 30, changePercent: -0.5 },
+    });
+
+    const result = calculateEntryScore(data);
     expect(result.signal).toBe('WAIT');
   });
 
@@ -212,18 +240,18 @@ describe('calculateEntryScore', () => {
 
   it('correctly sums all component scores', () => {
     const data = createMarketData({
-      vix: { currentPrice: 30, changePercent: 5 },  // Extreme: 50
+      vix: { currentPrice: 30, changePercent: 5 },  // Extreme: 40
       qqq: { currentPrice: 400, changePercent: 0 }, // Sideways: 30
       tqqq: { currentPrice: 50, changePercent: 3 },
-      sqqq: { currentPrice: 30, changePercent: -3 }, // Strong inverse: 30
+      sqqq: { currentPrice: 30, changePercent: -3 }, // decay ≈ 0.81
     });
 
     const result = calculateEntryScore(data);
 
-    expect(result.volatilityScore).toBe(50);
+    expect(result.volatilityScore).toBe(40);
     expect(result.trendScore).toBe(30);
-    expect(result.decayScore).toBe(30);
-    expect(result.total).toBe(110);
+    expect(result.decayScore).toBeCloseTo(0.81, 2);
+    expect(result.total).toBe(71);
   });
 
   it('handles missing market data gracefully', () => {

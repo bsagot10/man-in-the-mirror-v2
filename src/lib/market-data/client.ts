@@ -288,7 +288,7 @@ interface PolygonSnapshotResponse {
   };
 }
 
-async function fetchPolygonQuote(symbol: string): Promise<SymbolQuote | null> {
+async function fetchPolygonQuote(symbol: string): Promise<SymbolQuote | 'unauthorized' | null> {
   const apiKey = process.env.POLYGON_API_KEY;
   if (!apiKey || !POLYGON_SUPPORTED_SYMBOLS.has(symbol)) return null;
 
@@ -303,6 +303,9 @@ async function fetchPolygonQuote(symbol: string): Promise<SymbolQuote | null> {
     if (!response.ok) return null;
 
     const data: PolygonSnapshotResponse = await response.json();
+    // Free-tier keys can't use the snapshot endpoint — signal the caller to
+    // stop spending rate-limited calls on it (Polygon free tier = 5 req/min)
+    if (data?.status === 'NOT_AUTHORIZED') return 'unauthorized';
     const ticker = data?.ticker;
     if (!ticker?.day?.c) return null;
 
@@ -378,6 +381,36 @@ async function fetchPolygonHistoricalData(
     }
     return null;
   }
+}
+
+/**
+ * Build a delayed quote from the last two daily bars.
+ * Used for free-tier Polygon keys (no snapshot access) and FRED VIX fallback.
+ */
+function buildQuoteFromDailyBars(bars: HistoricalDataPoint[]): SymbolQuote | null {
+  if (!bars || bars.length === 0) return null;
+
+  const last = bars[bars.length - 1];
+  const prev = bars.length > 1 ? bars[bars.length - 2] : last;
+
+  return {
+    currentPrice: last.close,
+    previousClose: prev.close,
+    change: Math.round((last.close - prev.close) * 100) / 100,
+    changePercent: calculateChangePercent(last.close, prev.close),
+    volume: last.volume,
+    timestamp: new Date().toISOString(),
+  };
+}
+
+/**
+ * Build a delayed quote from Polygon daily aggregates.
+ * Free-tier Polygon keys get NOT_AUTHORIZED on the snapshot endpoint but can
+ * read daily aggregates — use the last two closes as current/previous.
+ */
+async function fetchPolygonAggsQuote(symbol: string): Promise<SymbolQuote | null> {
+  const bars = await fetchPolygonHistoricalData(symbol, getDaysAgo(10), new Date());
+  return bars ? buildQuoteFromDailyBars(bars) : null;
 }
 
 /**
@@ -606,6 +639,13 @@ export class MarketDataClient {
   private readonly CACHE_TTL = 5 * 60 * 1000; // 5 minute cache (increased to reduce rate limiting)
   private readonly HISTORICAL_CACHE_TTL = 15 * 60 * 1000; // 15 minute cache for historical data
 
+  // Free-tier Polygon keys get NOT_AUTHORIZED on the snapshot endpoint.
+  // Remember that so we stop wasting rate-limited calls (5 req/min) on it.
+  private polygonSnapshotUnauthorized = false;
+
+  // Single-flight guard: concurrent quote requests share one historical fetch
+  private historicalInFlight?: Promise<HistoricalData>;
+
   // Metrics tracking
   private metrics = {
     cacheHits: 0,
@@ -717,10 +757,50 @@ export class MarketDataClient {
    */
   private async fetchQuote(symbol: string): Promise<SymbolQuote | null> {
     if (symbol !== SYMBOLS.VIX) {
-      const polygonQuote = await fetchPolygonQuote(symbol);
-      if (polygonQuote) {
+      if (!this.polygonSnapshotUnauthorized) {
+        const polygonQuote = await fetchPolygonQuote(symbol);
+        if (polygonQuote === 'unauthorized') {
+          this.polygonSnapshotUnauthorized = true;
+          structuredLog(LogLevel.INFO, 'Polygon snapshot not authorized (free tier), switching to aggregates', {
+            component: 'MarketDataClient',
+            action: 'fetchQuote',
+            symbol,
+            source: 'polygon',
+          });
+        } else if (polygonQuote) {
+          this.metrics.polygonSuccess++;
+          return polygonQuote;
+        }
+      }
+
+      // TQQQ/SQQQ: reuse the shared 30-day historical cache (single-flight)
+      // instead of spending extra rate-limited Polygon calls per quote
+      if (symbol === SYMBOLS.TQQQ || symbol === SYMBOLS.SQQQ) {
+        try {
+          const hist = await this.fetchHistoricalData(30);
+          const bars = symbol === SYMBOLS.TQQQ ? hist.tqqq : hist.sqqq;
+          const barQuote = buildQuoteFromDailyBars(bars);
+          if (barQuote) {
+            this.metrics.polygonSuccess++;
+            return barQuote;
+          }
+        } catch {
+          // fall through to the aggregates/Yahoo fallbacks
+        }
+      }
+
+      // Remaining case (QQQ, or empty historical): derive a delayed quote
+      // from daily aggregates before falling back to Yahoo
+      const aggsQuote = await fetchPolygonAggsQuote(symbol);
+      if (aggsQuote) {
         this.metrics.polygonSuccess++;
-        return polygonQuote;
+        structuredLog(LogLevel.INFO, 'Polygon aggregates quote fallback succeeded', {
+          component: 'MarketDataClient',
+          action: 'fetchQuote',
+          symbol,
+          source: 'polygon',
+        });
+        return aggsQuote;
       }
       this.metrics.polygonFailed++;
     }
@@ -752,6 +832,21 @@ export class MarketDataClient {
       // Enhanced error type handling with structured logging
       const { type: errorType, retryAfter } = classifyError(error);
 
+      // VIX has no Polygon source — fall back to FRED's last two closes
+      if (symbol === SYMBOLS.VIX) {
+        const fredData = await fetchFredVixHistorical(10);
+        const fredQuote = fredData ? buildQuoteFromDailyBars(fredData) : null;
+        if (fredQuote) {
+          structuredLog(LogLevel.INFO, 'FRED VIX quote fallback succeeded', {
+            component: 'MarketDataClient',
+            action: 'fetchQuote',
+            symbol,
+            source: 'fred',
+          });
+          return fredQuote;
+        }
+      }
+
       structuredLog(LogLevel.ERROR, 'All data sources failed for symbol', {
         component: 'MarketDataClient',
         action: 'fetchQuote',
@@ -781,6 +876,17 @@ export class MarketDataClient {
       return this.cache.historicalData;
     }
 
+    // Single-flight: concurrent callers (e.g. TQQQ + SQQQ quotes) share one fetch
+    if (this.historicalInFlight) {
+      return this.historicalInFlight;
+    }
+    this.historicalInFlight = this.doFetchHistoricalData(days).finally(() => {
+      this.historicalInFlight = undefined;
+    });
+    return this.historicalInFlight;
+  }
+
+  private async doFetchHistoricalData(days: number): Promise<HistoricalData> {
     const endDate = new Date();
     const startDate = getDaysAgo(days);
 

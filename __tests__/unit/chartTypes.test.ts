@@ -26,18 +26,20 @@ describe('calculatePositionPnL', () => {
     entryDate: '2024-01-01',
   };
 
-  describe('P&L calculation', () => {
-    it('calculates positive P&L correctly', () => {
+  // Strategy convention: all positions are SHORT (Man in the Mirror shorts
+  // both TQQQ and SQQQ to harvest decay). Price DROP = profit.
+  describe('P&L calculation (short positions)', () => {
+    it('calculates negative P&L when price rises (short loses)', () => {
       const result = calculatePositionPnL(basePosition);
-      // (55 - 50) * 100 = 500
-      expect(result.pnl).toBe(500);
+      // (50 - 55) * 100 = -500
+      expect(result.pnl).toBe(-500);
     });
 
-    it('calculates negative P&L correctly', () => {
+    it('calculates positive P&L when price falls (short profits)', () => {
       const position: Position = { ...basePosition, currentPrice: 45.00 };
       const result = calculatePositionPnL(position);
-      // (45 - 50) * 100 = -500
-      expect(result.pnl).toBe(-500);
+      // (50 - 45) * 100 = 500
+      expect(result.pnl).toBe(500);
     });
 
     it('calculates zero P&L when prices are equal', () => {
@@ -53,30 +55,30 @@ describe('calculatePositionPnL', () => {
         currentPrice: 51.75,
       };
       const result = calculatePositionPnL(position);
-      // (51.75 - 50.25) * 100 = 150
-      expect(result.pnl).toBeCloseTo(150, 2);
+      // (50.25 - 51.75) * 100 = -150
+      expect(result.pnl).toBeCloseTo(-150, 2);
     });
 
     it('handles small share counts', () => {
       const position: Position = { ...basePosition, shares: 1 };
       const result = calculatePositionPnL(position);
-      // (55 - 50) * 1 = 5
-      expect(result.pnl).toBe(5);
+      // (50 - 55) * 1 = -5
+      expect(result.pnl).toBe(-5);
     });
   });
 
-  describe('P&L percentage calculation', () => {
-    it('calculates positive percentage correctly', () => {
+  describe('P&L percentage calculation (short positions)', () => {
+    it('calculates negative percentage when price rises', () => {
       const result = calculatePositionPnL(basePosition);
-      // ((55 - 50) / 50) * 100 = 10%
-      expect(result.pnlPercent).toBe(10);
+      // ((50 - 55) / 50) * 100 = -10%
+      expect(result.pnlPercent).toBe(-10);
     });
 
-    it('calculates negative percentage correctly', () => {
+    it('calculates positive percentage when price falls', () => {
       const position: Position = { ...basePosition, currentPrice: 45.00 };
       const result = calculatePositionPnL(position);
-      // ((45 - 50) / 50) * 100 = -10%
-      expect(result.pnlPercent).toBe(-10);
+      // ((50 - 45) / 50) * 100 = 10%
+      expect(result.pnlPercent).toBe(10);
     });
 
     it('handles zero entry price gracefully', () => {
@@ -92,8 +94,8 @@ describe('calculatePositionPnL', () => {
         currentPrice: 101.5,
       };
       const result = calculatePositionPnL(position);
-      // ((101.5 - 100) / 100) * 100 = 1.5%
-      expect(result.pnlPercent).toBeCloseTo(1.5, 2);
+      // ((100 - 101.5) / 100) * 100 = -1.5%
+      expect(result.pnlPercent).toBeCloseTo(-1.5, 2);
     });
   });
 
@@ -115,7 +117,7 @@ describe('calculatePositionPnL', () => {
   });
 
   describe('SQQQ positions', () => {
-    it('calculates P&L for SQQQ', () => {
+    it('calculates short P&L for SQQQ', () => {
       const sqqqPosition: Position = {
         symbol: 'SQQQ',
         shares: 200,
@@ -124,8 +126,8 @@ describe('calculatePositionPnL', () => {
         entryDate: '2024-01-01',
       };
       const result = calculatePositionPnL(sqqqPosition);
-      // (32.50 - 30) * 200 = 500
-      expect(result.pnl).toBe(500);
+      // (30 - 32.50) * 200 = -500
+      expect(result.pnl).toBe(-500);
       expect(result.symbol).toBe('SQQQ');
     });
   });

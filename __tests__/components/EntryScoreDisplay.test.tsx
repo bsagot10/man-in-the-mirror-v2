@@ -52,10 +52,10 @@ describe('EntryScoreDisplay Component', () => {
     });
 
     it('caps volatility bar at 100% for max score', () => {
-      // With UNIFIED_VISUAL_MAX=100, max volatility score (50) shows as 50%
-      render(<EntryScoreDisplay volatilityScore={50} />);
+      // With UNIFIED_VISUAL_MAX=100, max volatility score (40) shows as 40%
+      render(<EntryScoreDisplay volatilityScore={40} />);
       const bar = screen.getByTestId('volatility-bar');
-      expect(bar).toHaveStyle({ width: '50%' });
+      expect(bar).toHaveStyle({ width: '40%' });
     });
 
     it('shows 0% width for zero score', () => {
@@ -110,10 +110,10 @@ describe('EntryScoreDisplay Component', () => {
     });
 
     it('caps decay bar at 100% for max score', () => {
-      // With UNIFIED_VISUAL_MAX=100, max decay score (30) shows as 30%
-      render(<EntryScoreDisplay decayScore={30} />);
+      // With UNIFIED_VISUAL_MAX=100, max decay score (20) shows as 20%
+      render(<EntryScoreDisplay decayScore={20} />);
       const bar = screen.getByTestId('decay-bar');
-      expect(bar).toHaveStyle({ width: '30%' });
+      expect(bar).toHaveStyle({ width: '20%' });
     });
   });
 
@@ -146,19 +146,19 @@ describe('EntryScoreDisplay Component', () => {
       expect(screen.getByTestId('total-score')).toHaveTextContent('0');
     });
 
-    it('applies green color for high total (>= 70)', () => {
+    it('applies green color for high total (> 60)', () => {
       render(<EntryScoreDisplay totalScore={75} />);
       const totalElement = screen.getByTestId('total-score');
       expect(totalElement).toHaveClass('text-green-500');
     });
 
-    it('applies yellow color for medium total (50-69)', () => {
+    it('applies yellow color for medium total (41-60)', () => {
       render(<EntryScoreDisplay totalScore={60} />);
       const totalElement = screen.getByTestId('total-score');
       expect(totalElement).toHaveClass('text-yellow-500');
     });
 
-    it('applies red color for low total (< 50)', () => {
+    it('applies red color for low total (<= 40)', () => {
       render(<EntryScoreDisplay totalScore={40} />);
       const totalElement = screen.getByTestId('total-score');
       expect(totalElement).toHaveClass('text-red-500');
@@ -256,7 +256,7 @@ describe('EntryScoreDisplay Component', () => {
       render(<EntryScoreDisplay volatilityScore={25} />);
       const bar = screen.getByTestId('volatility-bar');
       expect(bar).toHaveAttribute('aria-valuemin', '0');
-      expect(bar).toHaveAttribute('aria-valuemax', '50');
+      expect(bar).toHaveAttribute('aria-valuemax', '40');
     });
 
     it('includes accessible labels for each score', () => {
@@ -277,9 +277,9 @@ describe('EntryScoreDisplay Component', () => {
       const volatilityBar = screen.getByTestId('volatility-bar');
       const trendBar = screen.getByTestId('trend-bar');
       const decayBar = screen.getByTestId('decay-bar');
-      expect(volatilityBar).toHaveAttribute('aria-valuetext', '25 out of 50');
+      expect(volatilityBar).toHaveAttribute('aria-valuetext', '25 out of 40');
       expect(trendBar).toHaveAttribute('aria-valuetext', '15 out of 30');
-      expect(decayBar).toHaveAttribute('aria-valuetext', '10 out of 30');
+      expect(decayBar).toHaveAttribute('aria-valuetext', '10 out of 20');
     });
   });
 

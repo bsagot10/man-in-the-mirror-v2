@@ -69,12 +69,13 @@ const mockHistoricalDataResponse = {
 const mockEntryScoreResponse = {
   success: true,
   entryScore: {
+    // Realistic post-alignment values: Extreme VIX (40) + Sideways (30) + decay 5 = 75 → ENTER (> 60)
     total: 75,
-    signal: 'WATCH',
-    volatilityRegime: 'High',
-    volatilityScore: 35,
-    trendScore: 25,
-    decayScore: 15,
+    signal: 'ENTER',
+    volatilityRegime: 'Extreme',
+    volatilityScore: 40,
+    trendScore: 30,
+    decayScore: 5,
   },
 };
 
@@ -248,9 +249,9 @@ describe('Dashboard Page', () => {
       render(<Dashboard />);
 
       await waitFor(() => {
-        expect(screen.getByTestId('volatility-score')).toHaveTextContent('35');
-        expect(screen.getByTestId('trend-score')).toHaveTextContent('25');
-        expect(screen.getByTestId('decay-score')).toHaveTextContent('15');
+        expect(screen.getByTestId('volatility-score')).toHaveTextContent('40');
+        expect(screen.getByTestId('trend-score')).toHaveTextContent('30');
+        expect(screen.getByTestId('decay-score')).toHaveTextContent('5');
       });
     });
   });

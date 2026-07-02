@@ -200,8 +200,12 @@ export function useDashboard(): DashboardState {
   const vixValue = marketData?.vix.currentPrice;
   const tqqqPrice = marketData?.tqqq.currentPrice;
   const sqqqPrice = marketData?.sqqq.currentPrice;
-  const tqqqStop = tqqqPrice !== undefined ? (tqqqPrice * 1.15).toFixed(2) : undefined;
-  const sqqqStop = sqqqPrice !== undefined ? (sqqqPrice * 1.15).toFixed(2) : undefined;
+  // Short-position stops sit 15% ABOVE the ENTRY price — a fixed risk level.
+  // Basing them on current price would silently ratchet with the market.
+  const tqqqStopBasis = historicalEntryPrices?.tqqq ?? storedEntryPrices?.tqqq ?? tqqqPrice;
+  const sqqqStopBasis = historicalEntryPrices?.sqqq ?? storedEntryPrices?.sqqq ?? sqqqPrice;
+  const tqqqStop = tqqqStopBasis !== undefined ? (tqqqStopBasis * 1.15).toFixed(2) : undefined;
+  const sqqqStop = sqqqStopBasis !== undefined ? (sqqqStopBasis * 1.15).toFixed(2) : undefined;
   const vixRegime = marketData ? determineVixRegime(marketData.vix.currentPrice) : undefined;
   const marketTrend = marketData ? determineMarketTrend(marketData.qqq.changePercent) : undefined;
 

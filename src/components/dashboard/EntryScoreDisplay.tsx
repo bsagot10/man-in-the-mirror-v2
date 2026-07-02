@@ -1,11 +1,11 @@
 /**
  * EntryScoreDisplay Component
  *
- * Displays the entry score calculation breakdown:
- * - Volatility Score (0-50)
+ * Displays the entry score calculation breakdown (canonical MCP weights):
+ * - Volatility Score (0-40)
  * - Trend Score (0-30)
- * - Decay Potential Score (0-30)
- * - Total Score with visual bars
+ * - Decay Potential Score (0-20)
+ * - Total Score with visual bars (0-90)
  *
  * Ported from: Flask app's Entry Score Calculation section
  */
@@ -30,24 +30,24 @@ export interface EntryScoreDisplayProps {
 // Constants
 // ============================================================================
 
-const MAX_VOLATILITY_SCORE = 50;
+const MAX_VOLATILITY_SCORE = 40;
 const MAX_TREND_SCORE = 30;
-const MAX_DECAY_SCORE = 30;
+const MAX_DECAY_SCORE = 20;
 
 // Unified max for visual comparison - all bars use same scale
 const UNIFIED_VISUAL_MAX = 100;
 
-// Score thresholds for color coding
-const SCORE_GOOD_THRESHOLD = 70;
-const SCORE_MODERATE_THRESHOLD = 50;
+// Score thresholds for color coding (strict >, matching signal thresholds)
+const SCORE_GOOD_THRESHOLD = 60;
+const SCORE_MODERATE_THRESHOLD = 40;
 
 // ============================================================================
 // Helper Functions
 // ============================================================================
 
 function getTotalColor(total: number): string {
-  if (total >= SCORE_GOOD_THRESHOLD) return 'text-green-500';
-  if (total >= SCORE_MODERATE_THRESHOLD) return 'text-yellow-500';
+  if (total > SCORE_GOOD_THRESHOLD) return 'text-green-500';
+  if (total > SCORE_MODERATE_THRESHOLD) return 'text-yellow-500';
   return 'text-red-500';
 }
 

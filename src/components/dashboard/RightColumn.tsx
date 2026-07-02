@@ -181,7 +181,7 @@ export function RightColumn({
         decayScore={entryScore?.decayScore}
         totalScore={entryScore?.total}
         loading={loading && !entryScore}
-        elevated={(entryScore?.total ?? 0) >= 70}
+        elevated={(entryScore?.total ?? 0) > 60}
       />
 
       {/* Position Sizing Recommendations */}
@@ -213,11 +213,11 @@ export function RightColumn({
           <div className="implementation-guide">
             <h4>Current Market Assessment:</h4>
             {entryScore?.signal === 'ENTER' ? (
-              <p>✅ <strong>ENTER</strong> - Entry score ({entryScore.total}/110) meets threshold of 70</p>
+              <p>✅ <strong>ENTER</strong> - Entry score ({entryScore.total}/90) is above threshold of 60</p>
             ) : entryScore?.signal === 'WATCH' ? (
-              <p>👀 <strong>WATCH</strong> - Entry score ({entryScore.total}/110) approaching threshold of 70</p>
+              <p>👀 <strong>WATCH</strong> - Entry score ({entryScore.total}/90) approaching threshold of 60</p>
             ) : (
-              <p>⚠️ <strong>WAIT</strong> - Entry score ({entryScore?.total ?? 0}/110) is below threshold of 70</p>
+              <p>⚠️ <strong>WAIT</strong> - Entry score ({entryScore?.total ?? 0}/90) is below threshold of 60</p>
             )}
             <h4>When conditions are favorable:</h4>
             <ol>

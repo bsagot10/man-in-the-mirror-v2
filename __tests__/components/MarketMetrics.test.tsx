@@ -28,7 +28,7 @@ describe('MarketMetrics Component', () => {
   describe('Entry Score Display', () => {
     it('shows entry score value when provided', () => {
       render(<MarketMetrics entryScore={75} />);
-      expect(screen.getByTestId('entry-score-value')).toHaveTextContent('75/110');
+      expect(screen.getByTestId('entry-score-value')).toHaveTextContent('75/90');
     });
 
     it('shows placeholder when no entry score', () => {
@@ -36,17 +36,17 @@ describe('MarketMetrics Component', () => {
       expect(screen.getByTestId('entry-score-value')).toHaveTextContent('-');
     });
 
-    it('shows ENTER signal for score >= 70', () => {
+    it('shows ENTER signal for score > 60', () => {
       render(<MarketMetrics entryScore={75} signal="ENTER" />);
       expect(screen.getByText('ENTER')).toBeInTheDocument();
     });
 
-    it('shows WATCH signal for score 50-69', () => {
+    it('shows WATCH signal for score in (40, 60]', () => {
       render(<MarketMetrics entryScore={60} signal="WATCH" />);
       expect(screen.getByText('WATCH')).toBeInTheDocument();
     });
 
-    it('shows WAIT signal for score < 50', () => {
+    it('shows WAIT signal for score <= 40', () => {
       render(<MarketMetrics entryScore={40} signal="WAIT" />);
       expect(screen.getByText('WAIT')).toBeInTheDocument();
     });

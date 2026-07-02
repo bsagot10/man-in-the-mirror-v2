@@ -80,8 +80,23 @@
     "/Volumes/T7 K/Documents/Graph1/man-in-the-mirror-v2/src/lib/PlotlyPartial.tsx",
     "/Volumes/T7 K/Documents/Graph1/man-in-the-mirror-v2/src/components/charts/DecayOpportunityChart.tsx",
     "/Volumes/T7 K/Documents/Graph1/man-in-the-mirror-v2/src/components/charts/StrategyPerformanceChart.tsx",
-    "/Volumes/T7 K/Documents/Graph1/man-in-the-mirror-v2/src/types/react-plotly.d.ts"
+    "/Volumes/T7 K/Documents/Graph1/man-in-the-mirror-v2/src/types/react-plotly.d.ts",
+    "/Volumes/T7 K/Documents/Graph1/man-in-the-mirror-v2/src/lib/chart-config/index.ts",
+    "/Volumes/T7 K/Documents/Graph1/man-in-the-mirror-v2/src/hooks/useDashboard.ts",
+    "/Volumes/T7 K/Documents/Graph1/man-in-the-mirror-v2/docs/plans/2026-05-11-orchestration-log.md",
+    "/Volumes/T7 K/Documents/Graph1/man-in-the-mirror-v2/docs/plans/2026-05-11-remaining-tasks-plan.md",
+    "/Volumes/T7 K/Documents/Graph1/man-in-the-mirror-v2/.env.local",
+    "/Volumes/T7 K/Documents/Graph1/man-in-the-mirror-v2/src/components/dashboard/LeftColumn.tsx",
+    "/Volumes/T7 K/Documents/Graph1/man-in-the-mirror-v2/src/components/dashboard/RightColumn.tsx",
+    "/Volumes/T7 K/Documents/Graph1/man-in-the-mirror-v2/src/hooks/useMarketData.ts",
+    "/Volumes/T7 K/Documents/Graph1/man-in-the-mirror-v2/__tests__/hooks/useMarketData.test.ts",
+    "/Volumes/T7 K/Documents/Graph1/man-in-the-mirror-v2/src/hooks/useEntryPrices.ts",
+    "/Volumes/T7 K/Documents/Graph1/man-in-the-mirror-v2/src/components/charts/BaseChart.tsx",
+    "/Volumes/T7 K/Documents/Graph1/man-in-the-mirror-v2/src/types/market-data.ts",
+    "/private/tmp/claude-502/-Volumes-T7-K/604df926-1a25-4eee-8a08-f668f9d8ce07/scratchpad/screenshot-dashboard.js",
+    "/Volumes/T7 K/.claude/projects/-Volumes-T7-K/memory/mirror-v2-strategy-alignment.md",
+    "/Volumes/T7 K/.claude/projects/-Volumes-T7-K/memory/MEMORY.md"
   ],
   "start_time": "2025-12-27T22:33:43Z",
-  "last_activity": "2026-03-15T09:52:28Z"
+  "last_activity": "2026-07-02T05:06:20Z"
 }
