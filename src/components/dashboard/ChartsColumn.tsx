@@ -25,6 +25,8 @@ export interface ChartsColumnProps {
   vixChartData: PriceDataPoint[];
   tqqqChartData: PriceDataPoint[];
   sqqqChartData: PriceDataPoint[];
+  tqqqStop?: string;
+  sqqqStop?: string;
   loading: boolean;
   historicalData: unknown;
 }
@@ -37,6 +39,8 @@ export function ChartsColumn({
   vixChartData,
   tqqqChartData,
   sqqqChartData,
+  tqqqStop,
+  sqqqStop,
   loading,
   historicalData,
 }: ChartsColumnProps) {
@@ -81,6 +85,8 @@ export function ChartsColumn({
           <TqqqSqqqChart
             tqqqData={tqqqChartData}
             sqqqData={sqqqChartData}
+            tqqqStop={tqqqStop !== undefined ? parseFloat(tqqqStop) : undefined}
+            sqqqStop={sqqqStop !== undefined ? parseFloat(sqqqStop) : undefined}
             loading={chartsLoading}
           />
         </div>

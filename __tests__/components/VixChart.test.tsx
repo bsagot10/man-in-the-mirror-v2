@@ -123,6 +123,40 @@ describe('VixChart', () => {
       expect(thresholdLine).toBeDefined();
     });
 
+    it('labels the entry threshold line with an annotation', () => {
+      render(<VixChart data={mockData} showThreshold />);
+      const chart = screen.getByTestId('plotly-chart');
+      const layout = JSON.parse(chart.getAttribute('data-layout') ?? '{}');
+
+      expect(layout.annotations).toBeDefined();
+      const thresholdAnnotation = layout.annotations.find(
+        (a: { y?: number }) => a.y === 20
+      );
+      expect(thresholdAnnotation).toBeDefined();
+      expect(thresholdAnnotation.text).toContain('20');
+      expect(thresholdAnnotation.showarrow).toBe(false);
+    });
+
+    it('does not add a threshold annotation when showThreshold is false', () => {
+      render(<VixChart data={mockData} showThreshold={false} />);
+      const chart = screen.getByTestId('plotly-chart');
+      const layout = JSON.parse(chart.getAttribute('data-layout') ?? '{}');
+
+      expect(layout.annotations).toEqual([]);
+    });
+
+    it('pins the x-axis range to the data extent so the line ends flush with the plot edge', () => {
+      render(<VixChart data={mockData} />);
+      const chart = screen.getByTestId('plotly-chart');
+      const layout = JSON.parse(chart.getAttribute('data-layout') ?? '{}');
+
+      expect(layout.xaxis.range).toEqual([
+        mockData[0].date,
+        mockData[mockData.length - 1].date,
+      ]);
+      expect(layout.xaxis.autorange).toBe(false);
+    });
+
     it('passes correct dates to x-axis', () => {
       render(<VixChart data={mockData} />);
       const chart = screen.getByTestId('plotly-chart');

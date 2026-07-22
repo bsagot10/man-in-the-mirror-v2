@@ -103,6 +103,20 @@ export function formatPnl(pnl: number): string {
 }
 
 /**
+ * Check whether a short position's stop-loss has been breached.
+ *
+ * Stops sit ABOVE entry for short positions (see calculatePositionPnL), so a
+ * breach occurs when the current price rises above the stop level.
+ */
+export function isStopBreached(
+  currentPrice: number | undefined,
+  stopLevel: number | undefined,
+): boolean {
+  if (currentPrice === undefined || stopLevel === undefined) return false;
+  return currentPrice > stopLevel;
+}
+
+/**
  * Calculate days between entry date and today
  */
 export function calculateDaysActive(entryDate: string): number {

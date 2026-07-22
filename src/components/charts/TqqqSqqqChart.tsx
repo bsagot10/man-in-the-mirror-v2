@@ -12,7 +12,7 @@
 'use client';
 
 import { useMemo } from 'react';
-import type { Data, Layout, Config } from 'plotly.js';
+import type { Data, Layout, Config, Shape } from 'plotly.js';
 import {
   CHART_COLORS,
   SPLINE_CONFIG,
@@ -36,6 +36,8 @@ interface PriceDataPoint {
 export interface TqqqSqqqChartProps {
   tqqqData: PriceDataPoint[];
   sqqqData: PriceDataPoint[];
+  tqqqStop?: number;
+  sqqqStop?: number;
   title?: string;
   height?: number;
   className?: string;
@@ -57,6 +59,8 @@ const DEFAULT_HEIGHT = 480;
 export function TqqqSqqqChart({
   tqqqData,
   sqqqData,
+  tqqqStop,
+  sqqqStop,
   title = DEFAULT_TITLE,
   height = DEFAULT_HEIGHT,
   className = '',
@@ -146,6 +150,82 @@ export function TqqqSqqqChart({
     ];
   }, [tqqqDates, tqqqValues, sqqqDates, sqqqValues]);
 
+  // Combined date extent (TQQQ and SQQQ dates are expected to align, but take
+  // the union of both so the axis range never clips either series).
+  const allDates = useMemo(() => {
+    const combined = [...tqqqDates, ...sqqqDates].sort();
+    return combined;
+  }, [tqqqDates, sqqqDates]);
+
+  // Create stop-loss threshold shapes, one per symbol that has a stop set
+  const shapes: Partial<Shape>[] = useMemo(() => {
+    if (allDates.length === 0) return [];
+
+    const result: Partial<Shape>[] = [];
+    if (tqqqStop !== undefined) {
+      result.push({
+        type: 'line' as const,
+        x0: allDates[0],
+        x1: allDates[allDates.length - 1],
+        y0: tqqqStop,
+        y1: tqqqStop,
+        line: {
+          color: CHART_COLORS.tqqq,
+          width: 2,
+          dash: 'dash',
+        },
+      });
+    }
+    if (sqqqStop !== undefined) {
+      result.push({
+        type: 'line' as const,
+        x0: allDates[0],
+        x1: allDates[allDates.length - 1],
+        y0: sqqqStop,
+        y1: sqqqStop,
+        line: {
+          color: CHART_COLORS.sqqq,
+          width: 2,
+          dash: 'dash',
+        },
+      });
+    }
+    return result;
+  }, [allDates, tqqqStop, sqqqStop]);
+
+  // Create annotations for the stop-loss labels
+  const annotations = useMemo(() => {
+    if (allDates.length === 0) return [];
+
+    const result = [];
+    const lastDate = allDates[allDates.length - 1];
+    if (tqqqStop !== undefined) {
+      result.push({
+        x: lastDate,
+        y: tqqqStop,
+        xanchor: 'left' as const,
+        yanchor: 'middle' as const,
+        text: `TQQQ Stop: $${tqqqStop.toFixed(2)}`,
+        showarrow: false,
+        font: { size: 10, color: CHART_COLORS.tqqq },
+        xshift: 5,
+      });
+    }
+    if (sqqqStop !== undefined) {
+      result.push({
+        x: lastDate,
+        y: sqqqStop,
+        xanchor: 'left' as const,
+        yanchor: 'middle' as const,
+        text: `SQQQ Stop: $${sqqqStop.toFixed(2)}`,
+        showarrow: false,
+        font: { size: 10, color: CHART_COLORS.sqqq },
+        xshift: 5,
+      });
+    }
+    return result;
+  }, [allDates, tqqqStop, sqqqStop]);
+
   // Create layout configuration
   const layout: Partial<Layout> = useMemo(() => {
     return {
@@ -185,6 +265,10 @@ export function TqqqSqqqChart({
         tickmode: 'auto' as const,
         nticks: 5,
         fixedrange: false,
+        // Pin the range to the data extent so the lines run flush to the
+        // right edge instead of stopping short inside auto-ranged padding.
+        range: allDates.length > 0 ? [allDates[0], allDates[allDates.length - 1]] : undefined,
+        autorange: allDates.length === 0,
       },
       yaxis: {
         title: { text: 'Price ($)', standoff: 15 },
@@ -192,8 +276,10 @@ export function TqqqSqqqChart({
         autorange: true,
         tickformat: '.2f',
       },
+      shapes,
+      annotations,
     };
-  }, [title, height]);
+  }, [title, height, allDates, shapes, annotations]);
 
   const config: Partial<Config> = { ...PLOT_CONFIG };
 

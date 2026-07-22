@@ -12,7 +12,7 @@ import type { Signal, Position } from '@/types/chart-types';
 import { getPnlClass, formatPnl } from '@/types/chart-types';
 import type { PositionSizing } from '@/lib/market-analysis/positionSizing';
 import type { VixRegime, MarketTrend } from '@/types/chart-types';
-import type { PortfolioMetrics } from '@/hooks/useDashboard';
+import type { PortfolioMetrics, StopReason } from '@/hooks/useDashboard';
 
 // ============================================================================
 // Types
@@ -32,6 +32,7 @@ export interface LeftColumnProps {
   sqqqPrice: number | undefined;
   tqqqStop: string | undefined;
   sqqqStop: string | undefined;
+  stopReason: StopReason;
   positionActive: boolean;
   portfolioMetrics: PortfolioMetrics;
   positions: Position[];
@@ -57,9 +58,14 @@ export function LeftColumn({
   sqqqPrice,
   tqqqStop,
   sqqqStop,
+  stopReason,
   positionActive,
   portfolioMetrics,
 }: LeftColumnProps) {
+  const tqqqStopped = stopReason === 'TQQQ' || stopReason === 'both';
+  const sqqqStopped = stopReason === 'SQQQ' || stopReason === 'both';
+  const anyStopped = stopReason !== null;
+
   return (
     <div data-testid="left-column" className="left-column">
       {/* Account Information */}
@@ -84,7 +90,9 @@ export function LeftColumn({
           <div className="account-control">
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.5rem' }}>
               <label htmlFor="account-size">Account Status:</label>
-              <span className="status-indicator">Good Standing</span>
+              <span className={`status-indicator ${anyStopped ? 'negative' : ''}`}>
+                {anyStopped ? 'Closed — Stop Triggered' : 'Good Standing'}
+              </span>
             </div>
             <div className="control-group">
               <label htmlFor="account-size" className="sr-only">Account Balance</label>
@@ -135,11 +143,13 @@ export function LeftColumn({
               <label>TQQQ Stop Loss</label>
               <span className="value negative">${tqqqStop ?? '—'}</span>
               <span className="sub-label">Current: ${tqqqPrice !== undefined ? tqqqPrice.toFixed(2) : '—'}</span>
+              {tqqqStopped && <span className="status-indicator negative">Stopped Out</span>}
             </div>
             <div className="risk-item">
               <label>SQQQ Stop Loss</label>
               <span className="value negative">${sqqqStop ?? '—'}</span>
               <span className="sub-label">Current: ${sqqqPrice !== undefined ? sqqqPrice.toFixed(2) : '—'}</span>
+              {sqqqStopped && <span className="status-indicator negative">Stopped Out</span>}
             </div>
           </div>
         </div>

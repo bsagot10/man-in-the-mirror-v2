@@ -198,6 +198,32 @@ describe('DecayOpportunityChart', () => {
       );
       expect(thresholdLine.line.color).toBe(CHART_COLORS.entryThreshold);
     });
+
+    it('labels the entry threshold line with an annotation', () => {
+      render(<DecayOpportunityChart tqqqData={mockTqqqData} sqqqData={mockSqqqData} />);
+      const chart = screen.getByTestId('plotly-chart');
+      const layout = JSON.parse(chart.getAttribute('data-layout') ?? '{}');
+
+      expect(layout.annotations).toBeDefined();
+      const thresholdAnnotation = layout.annotations.find(
+        (a: { y?: number }) => a.y === -5
+      );
+      expect(thresholdAnnotation).toBeDefined();
+      expect(thresholdAnnotation.text).toContain('-5');
+      expect(thresholdAnnotation.showarrow).toBe(false);
+    });
+
+    it('pins the x-axis range to the data extent so the line ends flush with the plot edge', () => {
+      render(<DecayOpportunityChart tqqqData={mockTqqqData} sqqqData={mockSqqqData} />);
+      const chart = screen.getByTestId('plotly-chart');
+      const layout = JSON.parse(chart.getAttribute('data-layout') ?? '{}');
+
+      expect(layout.xaxis.range).toEqual([
+        mockTqqqData[0].date,
+        mockTqqqData[mockTqqqData.length - 1].date,
+      ]);
+      expect(layout.xaxis.autorange).toBe(false);
+    });
   });
 
   describe('layout configuration', () => {

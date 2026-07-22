@@ -14,6 +14,7 @@ import {
   getPnlClass,
   formatPnl,
   calculateDaysActive,
+  isStopBreached,
   type Position,
 } from '@/types/chart-types';
 
@@ -290,5 +291,28 @@ describe('calculateDaysActive', () => {
       const result = calculateDaysActive('2024-01-10T00:00:00Z');
       expect(result).toBeGreaterThanOrEqual(5);
     });
+  });
+});
+
+// Short positions are stopped out when price rises ABOVE the stop level
+// (loss on a short grows as price climbs), matching the fixed entry*1.15
+// stop levels computed in useDashboard.
+describe('isStopBreached', () => {
+  it('returns true when current price is above the stop level', () => {
+    expect(isStopBreached(71.37, 58.67)).toBe(true);
+  });
+
+  it('returns false when current price is below the stop level', () => {
+    expect(isStopBreached(40.31, 79.79)).toBe(false);
+  });
+
+  it('returns false when current price equals the stop level exactly', () => {
+    expect(isStopBreached(58.67, 58.67)).toBe(false);
+  });
+
+  it('returns false when either value is undefined', () => {
+    expect(isStopBreached(undefined, 58.67)).toBe(false);
+    expect(isStopBreached(71.37, undefined)).toBe(false);
+    expect(isStopBreached(undefined, undefined)).toBe(false);
   });
 });

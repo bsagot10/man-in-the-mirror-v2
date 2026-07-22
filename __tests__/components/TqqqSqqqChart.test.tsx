@@ -331,6 +331,99 @@ describe('TqqqSqqqChart', () => {
       expect(chart).toBeInTheDocument();
     });
   });
+
+  describe('stop-loss lines', () => {
+    it('does not add shapes or annotations when no stops are provided', () => {
+      render(<TqqqSqqqChart tqqqData={mockTqqqData} sqqqData={mockSqqqData} />);
+      const chart = screen.getByTestId('plotly-chart');
+      const layout = JSON.parse(chart.getAttribute('data-layout') ?? '{}');
+
+      expect(layout.shapes).toEqual([]);
+      expect(layout.annotations).toEqual([]);
+    });
+
+    it('adds a TQQQ stop-loss line in the TQQQ color when tqqqStop is set', () => {
+      render(
+        <TqqqSqqqChart tqqqData={mockTqqqData} sqqqData={mockSqqqData} tqqqStop={58.67} />
+      );
+      const chart = screen.getByTestId('plotly-chart');
+      const layout = JSON.parse(chart.getAttribute('data-layout') ?? '{}');
+
+      const stopLine = layout.shapes.find((s: { y0?: number }) => s.y0 === 58.67);
+      expect(stopLine).toBeDefined();
+      expect(stopLine.line.color).toBe(CHART_COLORS.tqqq);
+      expect(stopLine.line.dash).toBe('dash');
+    });
+
+    it('adds an SQQQ stop-loss line in the SQQQ color when sqqqStop is set', () => {
+      render(
+        <TqqqSqqqChart tqqqData={mockTqqqData} sqqqData={mockSqqqData} sqqqStop={79.79} />
+      );
+      const chart = screen.getByTestId('plotly-chart');
+      const layout = JSON.parse(chart.getAttribute('data-layout') ?? '{}');
+
+      const stopLine = layout.shapes.find((s: { y0?: number }) => s.y0 === 79.79);
+      expect(stopLine).toBeDefined();
+      expect(stopLine.line.color).toBe(CHART_COLORS.sqqq);
+    });
+
+    it('adds both stop-loss lines when both stops are set', () => {
+      render(
+        <TqqqSqqqChart
+          tqqqData={mockTqqqData}
+          sqqqData={mockSqqqData}
+          tqqqStop={58.67}
+          sqqqStop={79.79}
+        />
+      );
+      const chart = screen.getByTestId('plotly-chart');
+      const layout = JSON.parse(chart.getAttribute('data-layout') ?? '{}');
+
+      expect(layout.shapes).toHaveLength(2);
+      expect(layout.annotations).toHaveLength(2);
+    });
+
+    it('labels the TQQQ stop-loss line with its dollar value', () => {
+      render(
+        <TqqqSqqqChart tqqqData={mockTqqqData} sqqqData={mockSqqqData} tqqqStop={58.67} />
+      );
+      const chart = screen.getByTestId('plotly-chart');
+      const layout = JSON.parse(chart.getAttribute('data-layout') ?? '{}');
+
+      const annotation = layout.annotations.find((a: { y?: number }) => a.y === 58.67);
+      expect(annotation).toBeDefined();
+      expect(annotation.text).toContain('TQQQ');
+      expect(annotation.text).toContain('58.67');
+      expect(annotation.showarrow).toBe(false);
+    });
+
+    it('labels the SQQQ stop-loss line with its dollar value', () => {
+      render(
+        <TqqqSqqqChart tqqqData={mockTqqqData} sqqqData={mockSqqqData} sqqqStop={79.79} />
+      );
+      const chart = screen.getByTestId('plotly-chart');
+      const layout = JSON.parse(chart.getAttribute('data-layout') ?? '{}');
+
+      const annotation = layout.annotations.find((a: { y?: number }) => a.y === 79.79);
+      expect(annotation).toBeDefined();
+      expect(annotation.text).toContain('SQQQ');
+      expect(annotation.text).toContain('79.79');
+    });
+  });
+
+  describe('x-axis range', () => {
+    it('pins the range to the combined data extent so the lines end flush with the plot edge', () => {
+      render(<TqqqSqqqChart tqqqData={mockTqqqData} sqqqData={mockSqqqData} />);
+      const chart = screen.getByTestId('plotly-chart');
+      const layout = JSON.parse(chart.getAttribute('data-layout') ?? '{}');
+
+      expect(layout.xaxis.range).toEqual([
+        mockTqqqData[0].date,
+        mockTqqqData[mockTqqqData.length - 1].date,
+      ]);
+      expect(layout.xaxis.autorange).toBe(false);
+    });
+  });
 });
 
 describe('TqqqSqqqChartProps type', () => {
@@ -347,6 +440,8 @@ describe('TqqqSqqqChartProps type', () => {
     const props: TqqqSqqqChartProps = {
       tqqqData: [],
       sqqqData: [],
+      tqqqStop: 58.67,
+      sqqqStop: 79.79,
       title: 'Custom Title',
       height: 500,
       className: 'custom-class',

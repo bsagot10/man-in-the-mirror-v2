@@ -424,4 +424,63 @@ describe('Dashboard Page', () => {
       });
     });
   });
+
+  describe('Stop-Loss Auto-Close', () => {
+    // TQQQ current price (mocked at 50) breaches a stop set at entry * 1.15
+    // when entry is low enough (50 > 40 * 1.15 = 46). SQQQ (current 30, entry
+    // 30) stays well under its stop (34.5) so only the TQQQ leg breaches.
+    function mockFetchWithEntryPrices() {
+      mockFetch.mockImplementation((url: string) => {
+        if (url === '/api/market-data') {
+          return Promise.resolve({ ok: true, json: () => Promise.resolve(mockMarketDataResponse) });
+        }
+        if (url === '/api/historical-data') {
+          return Promise.resolve({ ok: true, json: () => Promise.resolve(mockHistoricalDataResponse) });
+        }
+        if (url === '/api/entry-score') {
+          return Promise.resolve({ ok: true, json: () => Promise.resolve(mockEntryScoreResponse) });
+        }
+        if (url.startsWith('/api/price-on-date')) {
+          return Promise.resolve({
+            ok: true,
+            json: () => Promise.resolve({
+              success: true,
+              prices: { tqqq: 40, sqqq: 30 },
+              actualDate: '2024-01-01',
+            }),
+          });
+        }
+        return Promise.reject(new Error('Unknown URL'));
+      });
+    }
+
+    it('auto-closes the position and shows which leg triggered the stop', async () => {
+      mockFetchWithEntryPrices();
+      render(<Dashboard />);
+
+      await waitFor(() => {
+        expect(screen.getByText(/Closed — Stop Triggered/i)).toBeInTheDocument();
+      });
+
+      expect(screen.getByText(/○ Inactive/i)).toBeInTheDocument();
+      expect(screen.getAllByText(/Stopped Out/i)).toHaveLength(1);
+    });
+
+    it('lets a fresh position clear the stop-triggered status', async () => {
+      const user = userEvent.setup();
+      mockFetchWithEntryPrices();
+      render(<Dashboard />);
+
+      await waitFor(() => {
+        expect(screen.getByText(/Closed — Stop Triggered/i)).toBeInTheDocument();
+      });
+
+      await user.click(screen.getByRole('button', { name: /Enter new position at current market prices/i }));
+
+      await waitFor(() => {
+        expect(screen.getByText(/Good Standing/i)).toBeInTheDocument();
+      });
+      expect(screen.queryByText(/Stopped Out/i)).not.toBeInTheDocument();
+    });
+  });
 });

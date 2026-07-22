@@ -135,6 +135,27 @@ export function VixChart({
     ];
   }, [showThreshold, dates]);
 
+  // Create annotation for the threshold label
+  const annotations = useMemo(() => {
+    if (!showThreshold || dates.length === 0) return [];
+
+    return [
+      {
+        x: dates[dates.length - 1],
+        y: ENTRY_THRESHOLD,
+        xanchor: 'left' as const,
+        yanchor: 'middle' as const,
+        text: `Entry Threshold: ${ENTRY_THRESHOLD}`,
+        showarrow: false,
+        font: {
+          size: 10,
+          color: CHART_COLORS.entryThreshold,
+        },
+        xshift: 5,
+      },
+    ];
+  }, [showThreshold, dates]);
+
   // Create layout configuration
   const layout: Partial<Layout> = useMemo(() => {
     return {
@@ -174,6 +195,10 @@ export function VixChart({
         tickmode: 'auto' as const,
         nticks: 5,
         fixedrange: false,
+        // Pin the range to the data extent so the line runs flush to the
+        // right edge instead of stopping short inside auto-ranged padding.
+        range: dates.length > 0 ? [dates[0], dates[dates.length - 1]] : undefined,
+        autorange: dates.length === 0,
       },
       yaxis: {
         title: { text: 'VIX Value', standoff: 15 },
@@ -182,8 +207,9 @@ export function VixChart({
         tickformat: '.1f',
       },
       shapes,
+      annotations,
     };
-  }, [title, height, shapes]);
+  }, [title, height, shapes, annotations, dates]);
 
   const config: Partial<Config> = { ...PLOT_CONFIG };
 

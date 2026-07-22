@@ -48,6 +48,7 @@ export default function Dashboard() {
     setPositionActive,
     positionEntryDate,
     setPositionEntryDate,
+    stopReason,
     setStoredEntryPrices,
     positions,
     committedSizing,
@@ -165,6 +166,7 @@ export default function Dashboard() {
           sqqqPrice={sqqqPrice}
           tqqqStop={tqqqStop}
           sqqqStop={sqqqStop}
+          stopReason={stopReason}
           positionActive={positionActive}
           portfolioMetrics={portfolioMetrics}
           positions={positions}
@@ -176,6 +178,8 @@ export default function Dashboard() {
           vixChartData={vixChartData}
           tqqqChartData={tqqqChartData}
           sqqqChartData={sqqqChartData}
+          tqqqStop={tqqqStop}
+          sqqqStop={sqqqStop}
           loading={loading}
           historicalData={historicalData}
         />

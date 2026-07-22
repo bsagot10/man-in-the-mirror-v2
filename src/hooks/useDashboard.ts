@@ -13,7 +13,7 @@ import { useState, useEffect, useMemo, useCallback, useRef } from 'react';
 import { useMarketData } from '@/hooks/useMarketData';
 import { useEntryPrices } from '@/hooks/useEntryPrices';
 import type { Position } from '@/types/chart-types';
-import { calculatePositionPnL } from '@/types/chart-types';
+import { calculatePositionPnL, isStopBreached } from '@/types/chart-types';
 import { calculatePositionSizing, type PositionSizing } from '@/lib/market-analysis/positionSizing';
 import { determineVixRegime, determineMarketTrend } from '@/lib/market-analysis/vixRegime';
 
@@ -25,6 +25,9 @@ export interface PortfolioMetrics {
   totalPnl: number;
   returnPct: number;
 }
+
+/** Which leg(s) triggered the auto-close, for display after the position is gone */
+export type StopReason = 'TQQQ' | 'SQQQ' | 'both' | null;
 
 export interface DashboardState {
   // Market data
@@ -53,6 +56,7 @@ export interface DashboardState {
   setPositionActive: (v: boolean) => void;
   positionEntryDate: string;
   setPositionEntryDate: (v: string) => void;
+  stopReason: StopReason;
 
   // Position state
   storedEntryPrices: { tqqq: number; sqqq: number } | null;
@@ -120,6 +124,7 @@ export function useDashboard(): DashboardState {
   const [storedShares, setStoredShares] = useState<{ tqqq: number; sqqq: number } | null>(null);
   const [committedSizing, setCommittedSizing] = useState<PositionSizing | null>(null);
   const [positions, setPositions] = useState<Position[]>([]);
+  const [stopReason, setStopReason] = useState<StopReason>(null);
   const [hydrated, setHydrated] = useState(false);
   const initialFetchAttempted = useRef(false);
 
@@ -209,6 +214,27 @@ export function useDashboard(): DashboardState {
   const vixRegime = marketData ? determineVixRegime(marketData.vix.currentPrice) : undefined;
   const marketTrend = marketData ? determineMarketTrend(marketData.qqq.changePercent) : undefined;
 
+  // Auto-close: TQQQ and SQQQ are traded as one paired position, so either leg
+  // breaching its stop closes both — matches how the strategy is actually run
+  // rather than leaving a stopped-out leg open to keep accruing losses.
+  useEffect(() => {
+    if (!positionActive) return;
+    const tqqqBreached = isStopBreached(tqqqPrice, tqqqStop !== undefined ? parseFloat(tqqqStop) : undefined);
+    const sqqqBreached = isStopBreached(sqqqPrice, sqqqStop !== undefined ? parseFloat(sqqqStop) : undefined);
+    if (!tqqqBreached && !sqqqBreached) return;
+
+    setStopReason(tqqqBreached && sqqqBreached ? 'both' : tqqqBreached ? 'TQQQ' : 'SQQQ');
+    setPositionActive(false);
+    setStoredEntryPrices(null);
+    setStoredShares(null);
+    setCommittedSizing(null);
+    setPositions([]);
+    try {
+      localStorage.removeItem('positionShares');
+      localStorage.removeItem('committedSizing');
+    } catch (e) { console.warn('Could not access localStorage:', e); }
+  }, [positionActive, tqqqPrice, sqqqPrice, tqqqStop, sqqqStop]);
+
   const vixChartData = useMemo(() =>
     historicalData?.vix.map((d) => ({ date: d.date, close: d.close })) || [], [historicalData]);
   const tqqqChartData = useMemo(() =>
@@ -240,7 +266,7 @@ export function useDashboard(): DashboardState {
     try { localStorage.setItem('accountSize', String(accountSize)); }
     catch (e) { console.warn('Could not save to localStorage:', e); }
 
-    if (marketData && positionActive) {
+    if (marketData) {
       const newEntryPrices = { tqqq: marketData.tqqq.currentPrice, sqqq: marketData.sqqq.currentPrice };
       setHistoricalPricesManually(newEntryPrices);
       setStoredEntryPrices(newEntryPrices);
@@ -254,6 +280,8 @@ export function useDashboard(): DashboardState {
         localStorage.setItem('positionEntryDate', today);
       } catch (e) { console.warn('Could not save to localStorage:', e); }
       setPositionEntryDate(today);
+      setStopReason(null);
+      setPositionActive(true);
       setPositions([
         { symbol: 'TQQQ', shares: positionSizing.tqqqShares, entryPrice: marketData.tqqq.currentPrice, currentPrice: marketData.tqqq.currentPrice, entryDate: today },
         { symbol: 'SQQQ', shares: positionSizing.sqqqShares, entryPrice: marketData.sqqq.currentPrice, currentPrice: marketData.sqqq.currentPrice, entryDate: today },
@@ -272,7 +300,7 @@ export function useDashboard(): DashboardState {
     marketData, historicalData, entryScore, loading, error, marketOpen, lastUpdated, refresh,
     historicalEntryPrices, fetchingHistoricalPrices, historicalPricesError, historicalActualDate, fetchHistoricalPrices,
     autoRefresh, setAutoRefresh, accountSize, setAccountSize, positionActive, setPositionActive,
-    positionEntryDate, setPositionEntryDate, storedEntryPrices, setStoredEntryPrices, positions, committedSizing,
+    positionEntryDate, setPositionEntryDate, stopReason, storedEntryPrices, setStoredEntryPrices, positions, committedSizing,
     vixRegime, marketTrend, vixChartData, tqqqChartData, sqqqChartData,
     vixValue, tqqqPrice, sqqqPrice, tqqqStop, sqqqStop, positionSizing, portfolioMetrics,
     handleUpdateAccountSize, getStatusMessage,
