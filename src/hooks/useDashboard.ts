@@ -162,6 +162,9 @@ export function useDashboard(): DashboardState {
       // closed on reload; entry prices and date persist, so defaulting to active
       // would resurrect it with stale entries and default share counts.
       if (localStorage.getItem('positionActive') === 'false') setPositionActiveRaw(false);
+      // Without this, an auto-closed position reloads Inactive but reads as "Good Standing".
+      const storedStop = localStorage.getItem('stopReason');
+      if (storedStop === 'TQQQ' || storedStop === 'SQQQ' || storedStop === 'both') setStopReason(storedStop);
     } catch (e) { console.warn('Could not access localStorage:', e); }
     finally { setHydrated(true); }
   }, []);
@@ -173,6 +176,15 @@ export function useDashboard(): DashboardState {
     try { localStorage.setItem('positionActive', String(positionActive)); }
     catch (e) { console.warn('Could not save to localStorage:', e); }
   }, [hydrated, positionActive]);
+
+  // Persist why the position closed; cleared on reopen (stopReason -> null).
+  useEffect(() => {
+    if (!hydrated) return;
+    try {
+      if (stopReason) localStorage.setItem('stopReason', stopReason);
+      else localStorage.removeItem('stopReason');
+    } catch (e) { console.warn('Could not save to localStorage:', e); }
+  }, [hydrated, stopReason]);
 
   // Fetch initial historical prices once, AFTER hydration completes.
   // Why: useEntryPrices and useDashboard each hydrate from localStorage in effects.

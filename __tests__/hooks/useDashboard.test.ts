@@ -47,6 +47,12 @@ vi.mock('@/hooks/useEntryPrices', () => ({ useEntryPrices: () => mocks.entry }))
 
 import { useDashboard } from '@/hooks/useDashboard';
 
+// setPricesManually mutates entry.prices; reset so no describe inherits another's.
+beforeEach(() => {
+  mocks.entry.prices = { tqqq: 50, sqqq: 20 };
+  mocks.entry.setPricesManually.mockClear();
+});
+
 describe('useDashboard position persistence across reloads', () => {
   beforeEach(() => {
     localStorage.clear();
@@ -115,8 +121,6 @@ describe('useDashboard reopening a closed position', () => {
   beforeEach(() => {
     localStorage.clear();
     mocks.setTqqqPrice(60);
-    mocks.entry.prices = { tqqq: 50, sqqq: 20 };
-    mocks.entry.setPricesManually.mockClear();
   });
 
   it('re-enabling ACTIVE after an auto-close opens fresh at current prices, not stale entry', async () => {
@@ -132,5 +136,46 @@ describe('useDashboard reopening a closed position', () => {
     expect(tqqq?.shares).toBe(result.current.positionSizing.tqqqShares);
     expect(tqqq?.shares).not.toBe(5);
     expect(mocks.entry.setPricesManually).toHaveBeenCalledWith({ tqqq: 60, sqqq: 20 });
+  });
+});
+
+describe('useDashboard stop reason persistence', () => {
+  beforeEach(() => {
+    localStorage.clear();
+    mocks.setTqqqPrice(60);
+  });
+
+  it('keeps the stop reason after reload so an auto-closed position is not shown as in good standing', async () => {
+    const first = renderHook(() => useDashboard());
+    await waitFor(() => expect(first.result.current.positionActive).toBe(false));
+    expect(localStorage.getItem('stopReason')).toBe('TQQQ');
+    first.unmount();
+
+    mocks.setTqqqPrice(52);
+    const second = renderHook(() => useDashboard());
+    await waitFor(() => expect(second.result.current.stopReason).toBe('TQQQ'));
+    expect(second.result.current.positionActive).toBe(false);
+  });
+
+  it('clears the persisted stop reason when the position is reopened', async () => {
+    const { result } = renderHook(() => useDashboard());
+    await waitFor(() => expect(result.current.positionActive).toBe(false));
+    expect(localStorage.getItem('stopReason')).toBe('TQQQ');
+
+    act(() => result.current.setPositionActive(true));
+
+    await waitFor(() => expect(localStorage.getItem('stopReason')).toBeNull());
+    expect(result.current.stopReason).toBeNull();
+  });
+
+  it('ignores a corrupt stored stop reason', async () => {
+    mocks.setTqqqPrice(52);
+    localStorage.setItem('positionActive', 'false');
+    localStorage.setItem('stopReason', 'xyz');
+
+    const { result } = renderHook(() => useDashboard());
+    await waitFor(() => expect(result.current.positionActive).toBe(false));
+
+    expect(result.current.stopReason).toBeNull();
   });
 });
