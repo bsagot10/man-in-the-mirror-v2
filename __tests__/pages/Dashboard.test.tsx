@@ -106,6 +106,8 @@ function setupMockFetch() {
 describe('Dashboard Page', () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    // Position open/closed state now persists; start every test from a fresh browser
+    localStorage.clear();
     setupMockFetch();
   });
 

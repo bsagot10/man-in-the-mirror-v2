@@ -450,6 +450,14 @@ describe('MarketDataClient', () => {
 
       expect(client.isMarketOpen()).toBe(false);
     });
+
+    it('returns false on Juneteenth (observed Friday, June 18, 2027)', () => {
+      // June 19, 2027 is a Saturday, so NYSE closes Friday June 18
+      vi.useFakeTimers();
+      vi.setSystemTime(new Date('2027-06-18T16:00:00Z')); // 12 PM EDT
+
+      expect(client.isMarketOpen()).toBe(false);
+    });
   });
 });
 

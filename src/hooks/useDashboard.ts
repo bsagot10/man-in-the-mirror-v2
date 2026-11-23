@@ -158,9 +158,21 @@ export function useDashboard(): DashboardState {
       }
       const storedSizing = localStorage.getItem('committedSizing');
       if (storedSizing) setCommittedSizing(JSON.parse(storedSizing));
+      // A closed position (auto-close on stop breach, or manual toggle) must stay
+      // closed on reload; entry prices and date persist, so defaulting to active
+      // would resurrect it with stale entries and default share counts.
+      if (localStorage.getItem('positionActive') === 'false') setPositionActive(false);
     } catch (e) { console.warn('Could not access localStorage:', e); }
     finally { setHydrated(true); }
   }, []);
+
+  // Persist open/closed state. Waits for hydration so the default `true`
+  // never overwrites a stored `false` before it is read.
+  useEffect(() => {
+    if (!hydrated) return;
+    try { localStorage.setItem('positionActive', String(positionActive)); }
+    catch (e) { console.warn('Could not save to localStorage:', e); }
+  }, [hydrated, positionActive]);
 
   // Fetch initial historical prices once, AFTER hydration completes.
   // Why: useEntryPrices and useDashboard each hydrate from localStorage in effects.
@@ -287,7 +299,7 @@ export function useDashboard(): DashboardState {
         { symbol: 'SQQQ', shares: positionSizing.sqqqShares, entryPrice: marketData.sqqq.currentPrice, currentPrice: marketData.sqqq.currentPrice, entryDate: today },
       ]);
     }
-  }, [accountSize, marketData, positionActive, positionSizing, setHistoricalPricesManually]);
+  }, [accountSize, marketData, positionSizing, setHistoricalPricesManually]);
 
   const getStatusMessage = useCallback(() => {
     if (loading) return 'Updating market data...';
