@@ -35,7 +35,8 @@ const mocks = vi.hoisted(() => {
     error: null,
     actualDate: '2026-11-01',
     fetchPrices: () => Promise.resolve(),
-    setPricesManually: () => {},
+    // Like the real hook: manual prices replace what the hook sees next render.
+    setPricesManually: vi.fn((p: { tqqq: number; sqqq: number }) => { entry.prices = p; }),
     clearPrices: () => {},
   };
   return { state, entry, setTqqqPrice: (p: number) => { state.market = build(p); } };
@@ -107,5 +108,29 @@ describe('useDashboard auto-close hydration gate', () => {
 
     expect(result.current.stopReason).toBeNull();
     expect(localStorage.getItem('positionShares')).not.toBeNull();
+  });
+});
+
+describe('useDashboard reopening a closed position', () => {
+  beforeEach(() => {
+    localStorage.clear();
+    mocks.setTqqqPrice(60);
+    mocks.entry.prices = { tqqq: 50, sqqq: 20 };
+    mocks.entry.setPricesManually.mockClear();
+  });
+
+  it('re-enabling ACTIVE after an auto-close opens fresh at current prices, not stale entry', async () => {
+    const { result } = renderHook(() => useDashboard());
+    await waitFor(() => expect(result.current.positionActive).toBe(false));
+
+    act(() => result.current.setPositionActive(true));
+
+    await waitFor(() => expect(result.current.positionActive).toBe(true));
+    expect(result.current.stopReason).toBeNull();
+    const tqqq = result.current.positions.find((p) => p.symbol === 'TQQQ');
+    expect(tqqq?.entryPrice).toBe(60);
+    expect(tqqq?.shares).toBe(result.current.positionSizing.tqqqShares);
+    expect(tqqq?.shares).not.toBe(5);
+    expect(mocks.entry.setPricesManually).toHaveBeenCalledWith({ tqqq: 60, sqqq: 20 });
   });
 });

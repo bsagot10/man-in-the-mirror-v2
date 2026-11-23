@@ -114,7 +114,7 @@ export function useDashboard(): DashboardState {
 
   const [autoRefresh, setAutoRefresh] = useState(false);
   const [accountSize, setAccountSize] = useState<number>(3000);
-  const [positionActive, setPositionActive] = useState(true);
+  const [positionActive, setPositionActiveRaw] = useState(true);
   const [positionEntryDate, setPositionEntryDate] = useState<string>(() => {
     const date = new Date();
     date.setDate(date.getDate() - 30);
@@ -161,7 +161,7 @@ export function useDashboard(): DashboardState {
       // A closed position (auto-close on stop breach, or manual toggle) must stay
       // closed on reload; entry prices and date persist, so defaulting to active
       // would resurrect it with stale entries and default share counts.
-      if (localStorage.getItem('positionActive') === 'false') setPositionActive(false);
+      if (localStorage.getItem('positionActive') === 'false') setPositionActiveRaw(false);
     } catch (e) { console.warn('Could not access localStorage:', e); }
     finally { setHydrated(true); }
   }, []);
@@ -236,7 +236,7 @@ export function useDashboard(): DashboardState {
     if (!tqqqBreached && !sqqqBreached) return;
 
     setStopReason(tqqqBreached && sqqqBreached ? 'both' : tqqqBreached ? 'TQQQ' : 'SQQQ');
-    setPositionActive(false);
+    setPositionActiveRaw(false);
     setStoredEntryPrices(null);
     setStoredShares(null);
     setCommittedSizing(null);
@@ -293,13 +293,18 @@ export function useDashboard(): DashboardState {
       } catch (e) { console.warn('Could not save to localStorage:', e); }
       setPositionEntryDate(today);
       setStopReason(null);
-      setPositionActive(true);
+      setPositionActiveRaw(true);
       setPositions([
         { symbol: 'TQQQ', shares: positionSizing.tqqqShares, entryPrice: marketData.tqqq.currentPrice, currentPrice: marketData.tqqq.currentPrice, entryDate: today },
         { symbol: 'SQQQ', shares: positionSizing.sqqqShares, entryPrice: marketData.sqqq.currentPrice, currentPrice: marketData.sqqq.currentPrice, entryDate: today },
       ]);
     }
   }, [accountSize, marketData, positionSizing, setHistoricalPricesManually]);
+
+  // Reopening goes through handleUpdateAccountSize for a fresh entry at current prices; raw `true` would reuse stale entry/default shares and instantly re-close.
+  const setPositionActive = useCallback((next: boolean) => {
+    if (next) handleUpdateAccountSize(); else setPositionActiveRaw(false);
+  }, [handleUpdateAccountSize]);
 
   const getStatusMessage = useCallback(() => {
     if (loading) return 'Updating market data...';
