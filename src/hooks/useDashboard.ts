@@ -230,7 +230,7 @@ export function useDashboard(): DashboardState {
   // breaching its stop closes both — matches how the strategy is actually run
   // rather than leaving a stopped-out leg open to keep accruing losses.
   useEffect(() => {
-    if (!positionActive) return;
+    if (!hydrated || !positionActive) return;
     const tqqqBreached = isStopBreached(tqqqPrice, tqqqStop !== undefined ? parseFloat(tqqqStop) : undefined);
     const sqqqBreached = isStopBreached(sqqqPrice, sqqqStop !== undefined ? parseFloat(sqqqStop) : undefined);
     if (!tqqqBreached && !sqqqBreached) return;
@@ -245,7 +245,7 @@ export function useDashboard(): DashboardState {
       localStorage.removeItem('positionShares');
       localStorage.removeItem('committedSizing');
     } catch (e) { console.warn('Could not access localStorage:', e); }
-  }, [positionActive, tqqqPrice, sqqqPrice, tqqqStop, sqqqStop]);
+  }, [hydrated, positionActive, tqqqPrice, sqqqPrice, tqqqStop, sqqqStop]);
 
   const vixChartData = useMemo(() =>
     historicalData?.vix.map((d) => ({ date: d.date, close: d.close })) || [], [historicalData]);

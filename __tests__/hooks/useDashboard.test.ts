@@ -90,3 +90,22 @@ describe('useDashboard position persistence across reloads', () => {
     expect(second.result.current.positionActive).toBe(true);
   });
 });
+
+describe('useDashboard auto-close hydration gate', () => {
+  beforeEach(() => {
+    localStorage.clear();
+    mocks.setTqqqPrice(60);
+  });
+
+  it('does not auto-close a manually closed position on the first commit', async () => {
+    localStorage.setItem('positionActive', 'false');
+    localStorage.setItem('positionShares', JSON.stringify({ tqqq: 3, sqqq: 4 }));
+    localStorage.setItem('committedSizing', JSON.stringify({ tqqqShares: 3, sqqqShares: 4 }));
+
+    const { result } = renderHook(() => useDashboard());
+    await waitFor(() => expect(result.current.positionActive).toBe(false));
+
+    expect(result.current.stopReason).toBeNull();
+    expect(localStorage.getItem('positionShares')).not.toBeNull();
+  });
+});

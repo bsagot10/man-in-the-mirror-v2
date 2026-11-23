@@ -497,7 +497,7 @@ describe('useMarketData Hook', () => {
       const { result } = renderHook(() => useMarketData());
 
       await waitFor(() => {
-        expect(result.current.marketOpen).toBeDefined();
+        expect(result.current.loading).toBe(false);
       });
 
       expect(result.current.marketOpen).toBe(true);
