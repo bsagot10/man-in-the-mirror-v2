@@ -80,4 +80,13 @@ describe('Data as-of badge', () => {
     await screen.findByTestId('data-as-of');
     expect(screen.queryByText('Cached Data')).not.toBeInTheDocument();
   });
+
+  it('disables the inactive position toggle with a reason when TQQQ/SQQQ dates differ', async () => {
+    localStorage.setItem('positionActive', 'false');
+    setup({ asOf: { ...allDate, tqqq: '2026-11-20', sqqq: '2026-11-23' } });
+    render(<Dashboard />);
+    const toggle = await screen.findByRole('switch', { name: /toggle position active status/i });
+    await waitFor(() => expect(toggle).toBeDisabled());
+    expect(toggle).toHaveAttribute('title', expect.stringContaining('different dates'));
+  });
 });

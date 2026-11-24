@@ -50,6 +50,7 @@ export default function Dashboard() {
     positionEntryDate,
     setPositionEntryDate,
     stopReason,
+    entryBlockReason,
     setStoredEntryPrices,
     positions,
     committedSizing,
@@ -200,6 +201,7 @@ export default function Dashboard() {
           positionActive={positionActive}
           setPositionActive={setPositionActive}
           positionEntryDate={positionEntryDate}
+          entryBlockReason={entryBlockReason}
           setPositionEntryDate={setPositionEntryDate}
           fetchHistoricalPrices={fetchHistoricalPrices}
           setStoredEntryPrices={setStoredEntryPrices}
