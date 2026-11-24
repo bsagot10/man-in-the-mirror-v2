@@ -8,6 +8,8 @@ export interface SymbolData {
   change: number;
   volume: number;
   timestamp: string;
+  /** Trading date of the price, YYYY-MM-DD; absent when unknown. */
+  asOf?: string;
 }
 
 export interface MarketData {
@@ -15,6 +17,10 @@ export interface MarketData {
   qqq: SymbolData;
   tqqq: SymbolData;
   sqqq: SymbolData;
+  /** Set when served from cache past TTL / after a source fallback. */
+  isStale?: boolean;
+  /** Age of the cached data in ms; set when served from cache past TTL / after a source fallback. */
+  cacheAge?: number;
 }
 
 export interface HistoricalDataPoint {
