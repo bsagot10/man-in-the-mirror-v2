@@ -7,7 +7,7 @@
  * relation ("is above 60") that the rounded number can contradict.
  */
 
-import { describe, it, expect, vi } from 'vitest';
+import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { render, screen } from '@testing-library/react';
 import '@testing-library/jest-dom/vitest';
 import { RightColumn } from '@/components/dashboard/RightColumn';
@@ -69,5 +69,27 @@ describe('RightColumn Market Assessment Text', () => {
   it('WAIT text shows 0 when entry score is unavailable', () => {
     render(<RightColumn {...baseProps} entryScore={null} />);
     expect(screen.getByText(/Entry score \(0\/90\) — below entry threshold \(60\)/)).toBeInTheDocument();
+  });
+});
+
+describe('RightColumn entry date picker max', () => {
+  const originalTZ = process.env.TZ;
+
+  beforeEach(() => {
+    process.env.TZ = 'America/New_York';
+    vi.useFakeTimers({ toFake: ['Date'] });
+    vi.setSystemTime(new Date('2026-11-24T01:08:00Z'));
+  });
+
+  afterEach(() => {
+    vi.useRealTimers();
+    if (originalTZ === undefined) delete process.env.TZ;
+    else process.env.TZ = originalTZ;
+  });
+
+  it('caps the date input at the local day, not the UTC day', () => {
+    const { container } = render(<RightColumn {...baseProps} />);
+    const input = container.querySelector('input[type="date"]');
+    expect(input).toHaveAttribute('max', '2026-11-23');
   });
 });

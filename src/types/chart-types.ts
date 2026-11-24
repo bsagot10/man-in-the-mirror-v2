@@ -116,11 +116,24 @@ export function isStopBreached(
   return currentPrice > stopLevel;
 }
 
+/** YYYY-MM-DD for the user's LOCAL calendar day (toISOString would give UTC). */
+export function toLocalDateString(date: Date = new Date()): string {
+  const m = String(date.getMonth() + 1).padStart(2, '0');
+  const d = String(date.getDate()).padStart(2, '0');
+  return `${date.getFullYear()}-${m}-${d}`;
+}
+
 /**
  * Calculate days between entry date and today
  */
 export function calculateDaysActive(entryDate: string): number {
-  const entry = new Date(entryDate);
+  // Stored dates are local calendar days; parsing 'YYYY-MM-DD' directly would
+  // give UTC midnight and make an evening same-day entry read as 2 days.
+  // Strings with a time component carry their own instant, so parse as-is.
+  const dateOnly = /^(\d{4})-(\d{2})-(\d{2})$/.exec(entryDate);
+  const entry = dateOnly
+    ? new Date(Number(dateOnly[1]), Number(dateOnly[2]) - 1, Number(dateOnly[3]))
+    : new Date(entryDate);
   const today = new Date();
   // Clamp to 0: the date picker allows future entry dates, which must not
   // show positive "days active"

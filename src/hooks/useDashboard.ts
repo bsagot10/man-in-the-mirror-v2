@@ -13,7 +13,7 @@ import { useState, useEffect, useMemo, useCallback, useRef } from 'react';
 import { useMarketData } from '@/hooks/useMarketData';
 import { useEntryPrices } from '@/hooks/useEntryPrices';
 import type { Position } from '@/types/chart-types';
-import { calculatePositionPnL, isStopBreached } from '@/types/chart-types';
+import { calculatePositionPnL, isStopBreached, toLocalDateString } from '@/types/chart-types';
 import { calculatePositionSizing, type PositionSizing } from '@/lib/market-analysis/positionSizing';
 import { determineVixRegime, determineMarketTrend } from '@/lib/market-analysis/vixRegime';
 
@@ -118,7 +118,7 @@ export function useDashboard(): DashboardState {
   const [positionEntryDate, setPositionEntryDate] = useState<string>(() => {
     const date = new Date();
     date.setDate(date.getDate() - 30);
-    return date.toISOString().split('T')[0];
+    return toLocalDateString(date);
   });
   const [storedEntryPrices, setStoredEntryPrices] = useState<{ tqqq: number; sqqq: number } | null>(null);
   const [storedShares, setStoredShares] = useState<{ tqqq: number; sqqq: number } | null>(null);
@@ -297,7 +297,7 @@ export function useDashboard(): DashboardState {
       const newShares = { tqqq: positionSizing.tqqqShares, sqqq: positionSizing.sqqqShares };
       setStoredShares(newShares);
       setCommittedSizing(positionSizing);
-      const today = new Date().toISOString().split('T')[0];
+      const today = toLocalDateString();
       try {
         localStorage.setItem('positionShares', JSON.stringify(newShares));
         localStorage.setItem('committedSizing', JSON.stringify(positionSizing));

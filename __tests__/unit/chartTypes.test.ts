@@ -14,6 +14,7 @@ import {
   getPnlClass,
   formatPnl,
   calculateDaysActive,
+  toLocalDateString,
   isStopBreached,
   type Position,
 } from '@/types/chart-types';
@@ -235,8 +236,9 @@ describe('formatPnl', () => {
 });
 
 describe('calculateDaysActive', () => {
-  // Use fixed dates for predictable testing (midnight for cleaner day calculations)
-  const mockDate = new Date('2024-01-15T00:00:00Z');
+  // LOCAL midnight: entry dates are parsed as local days, so a UTC-midnight
+  // "now" would shift by the machine's offset and fail east of UTC.
+  const mockDate = new Date(2024, 0, 15);
 
   beforeEach(() => {
     vi.useFakeTimers();
@@ -314,5 +316,50 @@ describe('isStopBreached', () => {
     expect(isStopBreached(undefined, 58.67)).toBe(false);
     expect(isStopBreached(71.37, undefined)).toBe(false);
     expect(isStopBreached(undefined, undefined)).toBe(false);
+  });
+});
+
+// 8:08 PM on 2026-11-23 in New York is already 2026-11-24 in UTC
+describe('toLocalDateString', () => {
+  const originalTZ = process.env.TZ;
+
+  beforeEach(() => {
+    process.env.TZ = 'America/New_York';
+    vi.useFakeTimers({ toFake: ['Date'] });
+    vi.setSystemTime(new Date('2026-11-24T01:08:00Z'));
+  });
+
+  afterEach(() => {
+    vi.useRealTimers();
+    if (originalTZ === undefined) delete process.env.TZ;
+    else process.env.TZ = originalTZ;
+  });
+
+  it('returns the local calendar day, not the UTC day', () => {
+    expect(toLocalDateString()).toBe('2026-11-23');
+  });
+
+  it('zero-pads month and day', () => {
+    expect(toLocalDateString(new Date(2026, 0, 5, 12))).toBe('2026-01-05');
+  });
+});
+
+describe('calculateDaysActive in a timezone behind UTC', () => {
+  const originalTZ = process.env.TZ;
+
+  beforeEach(() => {
+    process.env.TZ = 'America/New_York';
+    vi.useFakeTimers({ toFake: ['Date'] });
+    vi.setSystemTime(new Date('2026-11-24T01:08:00Z'));
+  });
+
+  afterEach(() => {
+    vi.useRealTimers();
+    if (originalTZ === undefined) delete process.env.TZ;
+    else process.env.TZ = originalTZ;
+  });
+
+  it('counts an evening same-day entry as 1 day, not 2', () => {
+    expect(calculateDaysActive('2026-11-23')).toBe(1);
   });
 });

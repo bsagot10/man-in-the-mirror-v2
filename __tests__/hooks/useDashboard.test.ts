@@ -3,7 +3,7 @@
 //          toggle) stays closed across a page reload, and reopens on demand.
 // Key exports: test suites for useDashboard position persistence
 
-import { describe, it, expect, vi, beforeEach } from 'vitest';
+import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { renderHook, act, waitFor } from '@testing-library/react';
 
 // The real hooks return referentially stable values between renders; the mocks
@@ -177,5 +177,31 @@ describe('useDashboard stop reason persistence', () => {
     await waitFor(() => expect(result.current.positionActive).toBe(false));
 
     expect(result.current.stopReason).toBeNull();
+  });
+});
+
+describe('useDashboard entry date uses the local calendar day', () => {
+  const originalTZ = process.env.TZ;
+
+  beforeEach(() => {
+    localStorage.clear();
+    mocks.setTqqqPrice(52);
+    process.env.TZ = 'America/New_York';
+    // Fake only Date so waitFor's timers keep working
+    vi.useFakeTimers({ toFake: ['Date'] });
+    vi.setSystemTime(new Date('2026-11-24T01:08:00Z')); // 8:08 PM Nov 23 in New York
+  });
+
+  afterEach(() => {
+    vi.useRealTimers();
+    if (originalTZ === undefined) delete process.env.TZ;
+    else process.env.TZ = originalTZ;
+  });
+
+  it('reopening stores the local date, not the UTC date', () => {
+    const { result } = renderHook(() => useDashboard());
+    act(() => result.current.handleUpdateAccountSize());
+    expect(result.current.positionEntryDate).toBe('2026-11-23');
+    expect(localStorage.getItem('positionEntryDate')).toBe('2026-11-23');
   });
 });

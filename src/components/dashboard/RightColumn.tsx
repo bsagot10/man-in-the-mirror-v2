@@ -9,7 +9,7 @@
 
 import { EntryScoreDisplay } from '@/components/dashboard/EntryScoreDisplay';
 import type { Position } from '@/types/chart-types';
-import { calculatePositionPnL, getPnlClass, formatPnl, calculateDaysActive } from '@/types/chart-types';
+import { calculatePositionPnL, getPnlClass, formatPnl, calculateDaysActive, toLocalDateString } from '@/types/chart-types';
 import type { PositionSizing } from '@/lib/market-analysis/positionSizing';
 
 // ============================================================================
@@ -94,7 +94,7 @@ export function RightColumn({
                   try { localStorage.setItem('positionEntryDate', newDate); }
                   catch (err) { console.warn('Could not save to localStorage:', err); }
                 }}
-                max={new Date().toISOString().split('T')[0]}
+                max={toLocalDateString()}
                 aria-label="Position entry date"
                 title="Change date to see P&L from that entry point"
               />
