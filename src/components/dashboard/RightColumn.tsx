@@ -68,13 +68,14 @@ export function RightColumn({
         <div className="card-header">
           <h2>📋 POSITION DETAILS</h2>
           <button
-            className="btn-active"
+            className={`btn-active${positionActive ? '' : ' inactive'}`}
             onClick={() => setPositionActive(!positionActive)}
             role="switch"
             aria-checked={positionActive}
             aria-label="Toggle position active status"
+            title={positionActive ? 'Position is active' : 'Inactive — turning on enters a new position at current prices'}
           >
-            ⚡ ACTIVE
+            {positionActive ? '⚡ ACTIVE' : 'INACTIVE'}
           </button>
         </div>
         <div className="card-content">

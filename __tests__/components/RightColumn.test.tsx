@@ -8,7 +8,7 @@
  */
 
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
-import { render, screen } from '@testing-library/react';
+import { render, screen, fireEvent } from '@testing-library/react';
 import '@testing-library/jest-dom/vitest';
 import { RightColumn } from '@/components/dashboard/RightColumn';
 import type { PositionSizing } from '@/lib/market-analysis/positionSizing';
@@ -91,5 +91,35 @@ describe('RightColumn entry date picker max', () => {
     const { container } = render(<RightColumn {...baseProps} />);
     const input = container.querySelector('input[type="date"]');
     expect(input).toHaveAttribute('max', '2026-11-23');
+  });
+});
+
+describe('RightColumn position toggle button', () => {
+  const getToggle = () => screen.getByRole('switch', { name: /toggle position active status/i });
+
+  it('renders an INACTIVE, non-green state when positionActive is false', () => {
+    render(<RightColumn {...baseProps} positionActive={false} />);
+    const toggle = getToggle();
+    expect(toggle).toHaveTextContent('INACTIVE');
+    expect(toggle.textContent).not.toContain('⚡');
+    expect(toggle).toHaveClass('btn-active');
+    expect(toggle).toHaveClass('inactive');
+    expect(toggle).toHaveAttribute('aria-checked', 'false');
+    expect(toggle.getAttribute('title')).toMatch(/new position at current prices/i);
+  });
+
+  it('renders the green ACTIVE state when positionActive is true', () => {
+    render(<RightColumn {...baseProps} positionActive={true} />);
+    const toggle = getToggle();
+    expect(toggle).toHaveTextContent('⚡ ACTIVE');
+    expect(toggle).not.toHaveClass('inactive');
+    expect(toggle).toHaveAttribute('aria-checked', 'true');
+  });
+
+  it('calls setPositionActive(true) when clicked while inactive', () => {
+    const setPositionActive = vi.fn();
+    render(<RightColumn {...baseProps} positionActive={false} setPositionActive={setPositionActive} />);
+    fireEvent.click(getToggle());
+    expect(setPositionActive).toHaveBeenCalledWith(true);
   });
 });
