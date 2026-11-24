@@ -216,6 +216,8 @@ interface SymbolQuote {
   changePercent: number;
   volume: number;
   timestamp: string;
+  /** Trading date (YYYY-MM-DD) the price belongs to. Absent when the source gives no date. */
+  asOf?: string;
 }
 
 export interface CurrentMarketData {
@@ -430,6 +432,7 @@ function buildQuoteFromDailyBars(bars: HistoricalDataPoint[]): SymbolQuote | nul
     volume: last.volume,
     // Delayed end-of-day data: carry the bar's date, not "now"
     timestamp: `${last.date}T00:00:00.000Z`,
+    asOf: last.date,
   };
 }
 
@@ -603,6 +606,17 @@ interface YahooQuoteResponse {
   regularMarketPrice?: number;
   regularMarketPreviousClose?: number;
   regularMarketVolume?: number;
+  /** yahoo-finance2 v3 types this as Date; numbers (epoch s or ms) tolerated defensively. */
+  regularMarketTime?: Date | number;
+}
+
+/** Convert a Yahoo market time to its America/New_York trading date (YYYY-MM-DD). */
+function toNewYorkTradingDate(time: Date | number | undefined): string | undefined {
+  if (time === undefined || time === null) return undefined;
+  // Numbers below 1e11 are epoch seconds (1e11 s is year 5138; 1e11 ms is 1973)
+  const date = time instanceof Date ? time : new Date(time < 1e11 ? time * 1000 : time);
+  if (Number.isNaN(date.getTime())) return undefined;
+  return date.toLocaleDateString('en-CA', { timeZone: 'America/New_York' });
 }
 
 /**
@@ -613,6 +627,7 @@ export function formatSymbolData(quote: YahooQuoteResponse): SymbolQuote {
   const previousClose = quote.regularMarketPreviousClose ?? currentPrice;
   const change = Math.round((currentPrice - previousClose) * 100) / 100;
   const changePercent = calculateChangePercent(currentPrice, previousClose);
+  const asOf = toNewYorkTradingDate(quote.regularMarketTime);
 
   return {
     currentPrice,
@@ -621,6 +636,7 @@ export function formatSymbolData(quote: YahooQuoteResponse): SymbolQuote {
     changePercent,
     volume: quote.regularMarketVolume ?? 0,
     timestamp: new Date().toISOString(),
+    ...(asOf ? { asOf } : {}),
   };
 }
 
@@ -670,6 +686,9 @@ export class MarketDataClient {
   } = {};
 
   private readonly CACHE_TTL = 5 * 60 * 1000; // 5 minute cache (increased to reduce rate limiting)
+  // Stale fallback exists for transient rate limits that recover in minutes;
+  // an hour-old price must not size an entry.
+  private readonly MAX_STALE_AGE = 60 * 60 * 1000;
   private readonly HISTORICAL_CACHE_TTL = 15 * 60 * 1000; // 15 minute cache for historical data
 
   // Free-tier Polygon keys get NOT_AUTHORIZED on the snapshot endpoint.
@@ -735,12 +754,7 @@ export class MarketDataClient {
       // If all sources failed, return stale cache or throw
       if (allFailed) {
         if (this.cache.currentData && this.cache.timestamp) {
-          const cacheAge = Date.now() - this.cache.timestamp;
-          return {
-            ...this.cache.currentData,
-            cacheAge,
-            isStale: cacheAge > this.CACHE_TTL,
-          };
+          return this.staleFallback(this.cache.currentData, this.cache.timestamp);
         }
         throw new Error('All market data sources failed and no cache available');
       }
@@ -758,6 +772,14 @@ export class MarketDataClient {
       }
 
       const data: CurrentMarketData = { vix, qqq, tqqq, sqqq };
+      const usedFallback = !vixQuote || !qqqQuote || !tqqqQuote || !sqqqQuote;
+
+      if (usedFallback && this.cache.timestamp) {
+        // Keep fresher symbols but NOT the old timestamp's freshness: old data must never look fresh
+        const result = this.staleFallback(data, this.cache.timestamp);
+        this.cache.currentData = data;
+        return result;
+      }
 
       this.cache.currentData = data;
       this.cache.timestamp = Date.now();
@@ -768,16 +790,23 @@ export class MarketDataClient {
 
       // Return cached data if available (with stale indicator), otherwise re-throw
       if (this.cache.currentData && this.cache.timestamp) {
-        const cacheAge = Date.now() - this.cache.timestamp;
-        return {
-          ...this.cache.currentData,
-          cacheAge,
-          isStale: cacheAge > this.CACHE_TTL,
-        };
+        return this.staleFallback(this.cache.currentData, this.cache.timestamp);
       }
 
       throw error;
     }
+  }
+
+  /** Serve fallback data flagged stale, or throw if it is older than MAX_STALE_AGE. */
+  private staleFallback(
+    currentData: CurrentMarketData,
+    timestamp: number
+  ): CurrentMarketData {
+    const cacheAge = Date.now() - timestamp;
+    if (cacheAge > this.MAX_STALE_AGE) {
+      throw new Error('Market data unavailable and cached data is too old');
+    }
+    return { ...currentData, cacheAge, isStale: true };
   }
 
   /**

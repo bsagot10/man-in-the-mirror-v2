@@ -1846,3 +1846,189 @@ describe('structuredLog', () => {
   });
 });
 
+
+// ============================================================================
+// Stale cap, per-symbol fallback honesty, and asOf trading date
+// ============================================================================
+
+describe('Stale cap and per-symbol fallback', () => {
+  const MIN = 60 * 1000;
+  const goodQuote = {
+    regularMarketPrice: 421.25,
+    regularMarketPreviousClose: 420.0,
+    regularMarketVolume: 50000000,
+  };
+
+  beforeEach(async () => {
+    vi.useFakeTimers();
+    const yahooFinanceMock = (await import('yahoo-finance2')) as unknown as {
+      __mockQuote: ReturnType<typeof vi.fn>;
+      __mockHistorical: ReturnType<typeof vi.fn>;
+    };
+    mockQuote = yahooFinanceMock.__mockQuote;
+    mockHistorical = yahooFinanceMock.__mockHistorical;
+    vi.clearAllMocks();
+    vi.setSystemTime(new Date('2024-01-15T16:00:00Z'));
+  });
+
+  afterEach(() => {
+    vi.useRealTimers();
+  });
+
+  async function primedClient() {
+    mockQuote.mockResolvedValue(goodQuote);
+    const client = new MarketDataClient();
+    await client.fetchCurrentData();
+    return client;
+  }
+
+  it('flags partial failure after TTL as stale and does not re-stamp the cache', async () => {
+    const client = await primedClient();
+    vi.advanceTimersByTime(6 * MIN);
+
+    // TQQQ fails (404 skips retries), everything else succeeds with fresh values
+    mockQuote.mockImplementation(async (symbol: string) => {
+      if (symbol === 'TQQQ') throw new Error('404 Not Found');
+      return { ...goodQuote, regularMarketPrice: 430 };
+    });
+
+    const result = await client.fetchCurrentData();
+    expect(result.isStale).toBe(true);
+    expect(result.cacheAge).toBeCloseTo(6 * MIN, -2);
+    // Fresher symbols are kept, failed one is the old value
+    expect(result.qqq.currentPrice).toBe(430);
+    expect(result.tqqq.currentPrice).toBe(421.25);
+
+    // Timestamp must NOT have been refreshed: next call re-fetches instead of serving "fresh" cache
+    mockQuote.mockClear();
+    vi.advanceTimersByTime(1000);
+    const again = await client.fetchCurrentData();
+    expect(mockQuote).toHaveBeenCalled();
+    expect(again.isStale).toBe(true);
+    expect(again.cacheAge).toBeCloseTo(6 * MIN + 1000, -2);
+  }, 10000);
+
+  it('stamps the cache as fresh when every symbol succeeds', async () => {
+    const client = await primedClient();
+    vi.advanceTimersByTime(6 * MIN);
+    mockQuote.mockResolvedValue(goodQuote);
+
+    const result = await client.fetchCurrentData();
+    expect(result.isStale).toBeUndefined();
+
+    mockQuote.mockClear();
+    vi.advanceTimersByTime(1000);
+    const cached = await client.fetchCurrentData();
+    expect(mockQuote).not.toHaveBeenCalled();
+    expect(cached.isStale).toBe(false);
+  });
+
+  it('throws when partial-failure fallback data is older than the stale cap', async () => {
+    const client = await primedClient();
+    vi.advanceTimersByTime(61 * MIN);
+    mockQuote.mockImplementation(async (symbol: string) => {
+      if (symbol === 'TQQQ') throw new Error('404 Not Found');
+      return goodQuote;
+    });
+
+    await expect(client.fetchCurrentData()).rejects.toThrow('cached data is too old');
+  }, 10000);
+
+  it('serves all-failed fallback at 59 minutes as stale', async () => {
+    const client = await primedClient();
+    vi.advanceTimersByTime(59 * MIN);
+    mockQuote.mockRejectedValue(new Error('404 Not Found'));
+
+    const result = await client.fetchCurrentData();
+    expect(result.isStale).toBe(true);
+    expect(result.cacheAge).toBeCloseTo(59 * MIN, -2);
+  }, 10000);
+
+  it('throws for all-failed fallback at 61 minutes', async () => {
+    const client = await primedClient();
+    vi.advanceTimersByTime(61 * MIN);
+    mockQuote.mockRejectedValue(new Error('404 Not Found'));
+
+    await expect(client.fetchCurrentData()).rejects.toThrow('cached data is too old');
+  }, 10000);
+
+  it('catch path: serves within cap as stale, throws beyond cap', async () => {
+    const client = await primedClient();
+    const spy = vi
+      .spyOn(client as unknown as { fetchQuote: () => Promise<unknown> }, 'fetchQuote')
+      .mockRejectedValue(new Error('boom'));
+
+    vi.advanceTimersByTime(30 * MIN);
+    const ok = await client.fetchCurrentData();
+    expect(ok.isStale).toBe(true);
+
+    vi.advanceTimersByTime(31 * MIN);
+    await expect(client.fetchCurrentData()).rejects.toThrow('cached data is too old');
+    spy.mockRestore();
+  }, 10000);
+});
+
+describe('asOf trading date', () => {
+  beforeEach(async () => {
+    const yahooFinanceMock = (await import('yahoo-finance2')) as unknown as {
+      __mockQuote: ReturnType<typeof vi.fn>;
+    };
+    mockQuote = yahooFinanceMock.__mockQuote;
+    vi.clearAllMocks();
+  });
+
+  it('sets asOf to the last bar date for daily-bar quotes (Polygon aggregates + FRED VIX)', async () => {
+    process.env.POLYGON_API_KEY = 'test-key';
+    global.fetch = vi.fn().mockImplementation((url: string) => {
+      if (url.includes('/v2/snapshot/')) {
+        return Promise.resolve({ ok: false, status: 403, json: () => Promise.resolve({ status: 'NOT_AUTHORIZED' }) });
+      }
+      if (url.includes('/v2/aggs/')) {
+        return Promise.resolve({
+          ok: true,
+          json: () => Promise.resolve({
+            status: 'DELAYED',
+            results: [
+              { t: 1751000000000, o: 83, h: 84, l: 82, c: 84.0, v: 40000000 },
+              { t: 1751086400000, o: 84, h: 86, l: 83, c: 85.8, v: 50000000 },
+            ],
+          }),
+        });
+      }
+      if (url.includes('fred.stlouisfed.org')) {
+        return Promise.resolve({ ok: true, text: () => Promise.resolve('DATE,VIXCLS\n2026-06-29,17.50\n2026-06-30,18.25\n') });
+      }
+      return Promise.resolve({ ok: false });
+    }) as unknown as typeof fetch;
+    mockQuote.mockRejectedValue(new Error('Failed to get crumb, status 429'));
+
+    const { MarketDataClient } = await import('@/lib/market-data/client');
+    const testClient = new MarketDataClient();
+    testClient.clearCache();
+    const result = await testClient.fetchCurrentData();
+    delete process.env.POLYGON_API_KEY;
+
+    expect(result.tqqq.asOf).toBe('2025-06-28');
+    expect(result.vix.asOf).toBe('2026-06-30');
+  });
+
+  it('derives Yahoo asOf from regularMarketTime in America/New_York', () => {
+    const base = { regularMarketPrice: 50, regularMarketPreviousClose: 49, regularMarketVolume: 1 };
+    expect(formatSymbolData({ ...base, regularMarketTime: new Date('2026-11-23T21:00:00Z') }).asOf).toBe('2026-11-23');
+    // 02:00Z on the 24th is still the evening of the 23rd in New York
+    expect(formatSymbolData({ ...base, regularMarketTime: new Date('2026-11-24T02:00:00Z') }).asOf).toBe('2026-11-23');
+  });
+
+  it('accepts numeric regularMarketTime (epoch seconds or milliseconds)', () => {
+    const base = { regularMarketPrice: 50, regularMarketPreviousClose: 49, regularMarketVolume: 1 };
+    const ms = Date.parse('2026-11-24T02:00:00Z');
+    expect(formatSymbolData({ ...base, regularMarketTime: ms }).asOf).toBe('2026-11-23');
+    expect(formatSymbolData({ ...base, regularMarketTime: ms / 1000 }).asOf).toBe('2026-11-23');
+  });
+
+  it('omits asOf when Yahoo gives no time', () => {
+    const result = formatSymbolData({ regularMarketPrice: 50, regularMarketPreviousClose: 49 });
+    expect(result.asOf).toBeUndefined();
+    expect('asOf' in result).toBe(false);
+  });
+});
