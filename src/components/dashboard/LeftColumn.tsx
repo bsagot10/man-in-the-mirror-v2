@@ -13,6 +13,8 @@ import { getPnlClass, formatPnl } from '@/types/chart-types';
 import type { PositionSizing } from '@/lib/market-analysis/positionSizing';
 import type { VixRegime, MarketTrend } from '@/types/chart-types';
 import type { PortfolioMetrics, StopReason } from '@/hooks/useDashboard';
+import type { MarketData } from '@/types/market-data';
+import { getEntryBlockReason } from '@/lib/market-data/provenance';
 
 // ============================================================================
 // Types
@@ -25,7 +27,7 @@ export interface LeftColumnProps {
   entryScore: { total: number; signal: string; volatilityScore: number; trendScore: number; decayScore: number } | null;
   loading: boolean;
   error: string | null;
-  marketData: { vix: { currentPrice: number } } | null;
+  marketData: MarketData | null;
   vixRegime: VixRegime | undefined;
   marketTrend: MarketTrend | undefined;
   tqqqPrice: number | undefined;
@@ -65,6 +67,7 @@ export function LeftColumn({
   const tqqqStopped = stopReason === 'TQQQ' || stopReason === 'both';
   const sqqqStopped = stopReason === 'SQQQ' || stopReason === 'both';
   const anyStopped = stopReason !== null;
+  const entryBlockReason = getEntryBlockReason(marketData);
 
   return (
     <div data-testid="left-column" className="left-column">
@@ -108,6 +111,7 @@ export function LeftColumn({
               <button
                 className="btn-update"
                 onClick={handleUpdateAccountSize}
+                disabled={!!entryBlockReason}
                 aria-label="Enter new position at current market prices"
                 title="Enter new position at current prices"
               >
@@ -117,6 +121,11 @@ export function LeftColumn({
             <p className="helper-text" style={{ fontSize: '0.75rem', color: '#888', marginTop: '0.5rem' }}>
               Saves account size and enters a new position at today&apos;s prices
             </p>
+            {entryBlockReason && (
+              <p className="helper-text" role="alert" style={{ fontSize: '0.75rem', color: 'var(--negative)', marginTop: '0.25rem' }}>
+                {entryBlockReason}
+              </p>
+            )}
           </div>
         </div>
       </div>

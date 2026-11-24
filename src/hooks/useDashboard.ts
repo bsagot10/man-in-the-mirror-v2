@@ -12,6 +12,7 @@
 import { useState, useEffect, useMemo, useCallback, useRef } from 'react';
 import { useMarketData } from '@/hooks/useMarketData';
 import { useEntryPrices } from '@/hooks/useEntryPrices';
+import { getEntryBlockReason } from '@/lib/market-data/provenance';
 import type { Position } from '@/types/chart-types';
 import { calculatePositionPnL, isStopBreached, toLocalDateString } from '@/types/chart-types';
 import { calculatePositionSizing, type PositionSizing } from '@/lib/market-analysis/positionSizing';
@@ -77,6 +78,9 @@ export interface DashboardState {
   sqqqStop: string | undefined;
   positionSizing: PositionSizing;
   portfolioMetrics: PortfolioMetrics;
+
+  /** Why entering a position is currently blocked (stale / mismatched quotes), or null. */
+  entryBlockReason: string | null;
 
   // Handlers
   handleUpdateAccountSize: () => void;
@@ -291,6 +295,8 @@ export function useDashboard(): DashboardState {
     catch (e) { console.warn('Could not save to localStorage:', e); }
 
     if (marketData) {
+      // Free-tier quotes are daily closes from rotating sources: a stale or date-mismatched pair would book wrong entry prices.
+      if (getEntryBlockReason(marketData)) return;
       const newEntryPrices = { tqqq: marketData.tqqq.currentPrice, sqqq: marketData.sqqq.currentPrice };
       const today = toLocalDateString();
       setHistoricalPricesManually(newEntryPrices, today);
@@ -318,6 +324,8 @@ export function useDashboard(): DashboardState {
     if (next) handleUpdateAccountSize(); else setPositionActiveRaw(false);
   }, [handleUpdateAccountSize]);
 
+  const entryBlockReason = useMemo(() => getEntryBlockReason(marketData), [marketData]);
+
   const getStatusMessage = useCallback(() => {
     if (loading) return 'Updating market data...';
     if (error) return `Error: ${error}`;
@@ -332,6 +340,6 @@ export function useDashboard(): DashboardState {
     positionEntryDate, setPositionEntryDate, stopReason, storedEntryPrices, setStoredEntryPrices, positions, committedSizing,
     vixRegime, marketTrend, vixChartData, tqqqChartData, sqqqChartData,
     vixValue, tqqqPrice, sqqqPrice, tqqqStop, sqqqStop, positionSizing, portfolioMetrics,
-    handleUpdateAccountSize, getStatusMessage,
+    entryBlockReason, handleUpdateAccountSize, getStatusMessage,
   };
 }

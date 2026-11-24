@@ -34,6 +34,8 @@ export interface RightColumnProps {
   vixValue: number | undefined;
   tqqqPrice: number | undefined;
   sqqqPrice: number | undefined;
+  /** When set, turning the position ON is blocked (stale / mismatched quotes). */
+  entryBlockReason?: string | null;
 }
 
 // ============================================================================
@@ -58,8 +60,10 @@ export function RightColumn({
   vixValue,
   tqqqPrice,
   sqqqPrice,
+  entryBlockReason,
 }: RightColumnProps) {
   const effectiveSizing = committedSizing ?? positionSizing;
+  const toggleBlocked = !positionActive && !!entryBlockReason;
 
   return (
     <div data-testid="right-column" className="right-column">
@@ -73,7 +77,8 @@ export function RightColumn({
             role="switch"
             aria-checked={positionActive}
             aria-label="Toggle position active status"
-            title={positionActive ? 'Position is active' : 'Inactive — turning on enters a new position at current prices'}
+            disabled={toggleBlocked}
+            title={toggleBlocked ? entryBlockReason! : positionActive ? 'Position is active' : 'Inactive — turning on enters a new position at current prices'}
           >
             {positionActive ? '⚡ ACTIVE' : 'INACTIVE'}
           </button>

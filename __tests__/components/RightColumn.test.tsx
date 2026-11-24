@@ -123,3 +123,19 @@ describe('RightColumn position toggle button', () => {
     expect(setPositionActive).toHaveBeenCalledWith(true);
   });
 });
+
+describe('RightColumn toggle when entry is blocked', () => {
+  const getToggle = () => screen.getByRole('switch', { name: /toggle position active status/i });
+  const reason = 'TQQQ and SQQQ prices are from different dates — refresh before entering.';
+
+  it('disables the inactive toggle and shows the reason as title', () => {
+    render(<RightColumn {...baseProps} positionActive={false} entryBlockReason={reason} />);
+    expect(getToggle()).toBeDisabled();
+    expect(getToggle()).toHaveAttribute('title', reason);
+  });
+
+  it('keeps the active toggle enabled so turning off is allowed', () => {
+    render(<RightColumn {...baseProps} positionActive={true} entryBlockReason={reason} />);
+    expect(getToggle()).not.toBeDisabled();
+  });
+});

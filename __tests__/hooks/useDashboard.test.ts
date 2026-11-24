@@ -11,12 +11,16 @@ import { renderHook, act, waitFor } from '@testing-library/react';
 // new market snapshot, standing in for the market moving between page loads.
 const mocks = vi.hoisted(() => {
   const refresh = () => Promise.resolve();
-  const build = (tqqq: number) => ({
+  const build = (
+    tqqq: number,
+    extra: { tqqqAsOf?: string; sqqqAsOf?: string; isStale?: boolean } = {},
+  ) => ({
     marketData: {
       vix: { currentPrice: 25, changePercent: 0 },
       qqq: { currentPrice: 400, changePercent: 0 },
-      tqqq: { currentPrice: tqqq, changePercent: 0 },
-      sqqq: { currentPrice: 20, changePercent: 0 },
+      tqqq: { currentPrice: tqqq, changePercent: 0, ...(extra.tqqqAsOf && { asOf: extra.tqqqAsOf }) },
+      sqqq: { currentPrice: 20, changePercent: 0, ...(extra.sqqqAsOf && { asOf: extra.sqqqAsOf }) },
+      ...(extra.isStale && { isStale: true }),
     },
     historicalData: null,
     entryScore: null,
@@ -42,7 +46,14 @@ const mocks = vi.hoisted(() => {
     }),
     clearPrices: () => {},
   };
-  return { state, entry, setTqqqPrice: (p: number) => { state.market = build(p); } };
+  return {
+    state,
+    entry,
+    setTqqqPrice: (p: number) => { state.market = build(p); },
+    setMarket: (p: number, extra?: { tqqqAsOf?: string; sqqqAsOf?: string; isStale?: boolean }) => {
+      state.market = build(p, extra);
+    },
+  };
 });
 
 vi.mock('@/hooks/useMarketData', () => ({ useMarketData: () => mocks.state.market }));
@@ -50,6 +61,7 @@ vi.mock('@/hooks/useEntryPrices', () => ({ useEntryPrices: () => mocks.entry }))
 
 import { useDashboard } from '@/hooks/useDashboard';
 import { toLocalDateString } from '@/types/chart-types';
+import { getEntryBlockReason } from '@/lib/market-data/provenance';
 
 // setPricesManually mutates entry.prices; reset so no describe inherits another's.
 beforeEach(() => {
@@ -223,5 +235,71 @@ describe('useDashboard fresh entry replaces the stale historical entry date', ()
     act(() => result.current.handleUpdateAccountSize());
     expect(mocks.entry.setPricesManually).toHaveBeenCalledWith(expect.anything(), today);
     expect(result.current.positions.find((p) => p.symbol === 'TQQQ')?.entryDate).toBe(today);
+  });
+});
+
+describe('useDashboard blocks entry on inconsistent or stale market data', () => {
+  const mixed = { tqqqAsOf: '2026-11-20', sqqqAsOf: '2026-11-23' };
+
+  beforeEach(() => {
+    localStorage.clear();
+    mocks.setTqqqPrice(52);
+  });
+
+  it('mixed asOf: handleUpdateAccountSize books nothing', () => {
+    mocks.setMarket(52, mixed);
+    const { result } = renderHook(() => useDashboard());
+    const before = result.current.positions;
+    act(() => result.current.handleUpdateAccountSize());
+    expect(mocks.entry.setPricesManually).not.toHaveBeenCalled();
+    expect(result.current.positions).toEqual(before);
+  });
+
+  it('mixed asOf: reopening after auto-close leaves the position closed', async () => {
+    mocks.setMarket(60, mixed); // breaches stop, auto-closes
+    const { result } = renderHook(() => useDashboard());
+    await waitFor(() => expect(result.current.positionActive).toBe(false));
+    act(() => result.current.setPositionActive(true));
+    expect(result.current.positionActive).toBe(false);
+    expect(mocks.entry.setPricesManually).not.toHaveBeenCalled();
+  });
+
+  it('stale data blocks entry', () => {
+    mocks.setMarket(52, { isStale: true });
+    const { result } = renderHook(() => useDashboard());
+    act(() => result.current.handleUpdateAccountSize());
+    expect(mocks.entry.setPricesManually).not.toHaveBeenCalled();
+  });
+
+  it('same past asOf for both books normally', () => {
+    mocks.setMarket(52, { tqqqAsOf: '2026-11-20', sqqqAsOf: '2026-11-20' });
+    const { result } = renderHook(() => useDashboard());
+    act(() => result.current.handleUpdateAccountSize());
+    expect(mocks.entry.setPricesManually).toHaveBeenCalled();
+    expect(result.current.positions).toHaveLength(2);
+  });
+
+  it('missing asOf books normally', () => {
+    mocks.setMarket(52);
+    const { result } = renderHook(() => useDashboard());
+    act(() => result.current.handleUpdateAccountSize());
+    expect(mocks.entry.setPricesManually).toHaveBeenCalled();
+  });
+
+  it('still saves account size when blocked', () => {
+    mocks.setMarket(52, mixed);
+    const { result } = renderHook(() => useDashboard());
+    act(() => result.current.handleUpdateAccountSize());
+    expect(localStorage.getItem('accountSize')).not.toBeNull();
+  });
+
+  it('exposes entryBlockReason matching the helper', () => {
+    mocks.setMarket(52, mixed);
+    const blocked = renderHook(() => useDashboard());
+    expect(blocked.result.current.entryBlockReason).toBe(getEntryBlockReason(mocks.state.market.marketData as never));
+    expect(blocked.result.current.entryBlockReason).not.toBeNull();
+    mocks.setMarket(52);
+    const ok = renderHook(() => useDashboard());
+    expect(ok.result.current.entryBlockReason).toBeNull();
   });
 });
