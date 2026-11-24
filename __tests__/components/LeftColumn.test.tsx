@@ -57,3 +57,28 @@ describe('LeftColumn Enter Position button', () => {
     expect(screen.queryByRole('alert')).not.toBeInTheDocument();
   });
 });
+
+describe('LeftColumn entry price notice', () => {
+  it('shows a non-blocking notice when market open and prices are old', () => {
+    render(<LeftColumn {...props(market({}, '2020-01-02', '2020-01-02'))} marketOpen />);
+    expect(screen.getByTestId('entry-price-notice')).toHaveTextContent('Jan 2');
+    expect(screen.getByRole('button', { name: /enter new position/i })).toBeEnabled();
+  });
+
+  it('shows no notice when market closed', () => {
+    render(<LeftColumn {...props(market({}, '2020-01-02', '2020-01-02'))} marketOpen={false} />);
+    expect(screen.queryByTestId('entry-price-notice')).not.toBeInTheDocument();
+  });
+
+  it('shows only the block alert when blocked', () => {
+    render(<LeftColumn {...props(market({ isStale: true }, '2020-01-02', '2020-01-02'))} marketOpen />);
+    expect(screen.queryByTestId('entry-price-notice')).not.toBeInTheDocument();
+    expect(screen.getByRole('alert')).toBeInTheDocument();
+  });
+
+  it('shows only the block alert when dates mismatch', () => {
+    render(<LeftColumn {...props(market({}, '2020-01-02', '2020-01-03'))} marketOpen />);
+    expect(screen.queryByTestId('entry-price-notice')).not.toBeInTheDocument();
+    expect(screen.getByRole('alert')).toBeInTheDocument();
+  });
+});

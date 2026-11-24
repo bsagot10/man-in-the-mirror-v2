@@ -1,6 +1,6 @@
 // filepath: src/lib/market-data/provenance.ts
 // Purpose: Pure helpers describing the trading date (asOf) of market quotes and when entry should be blocked.
-// Key exports: getAsOfSummary, getEntryBlockReason
+// Key exports: getAsOfSummary, getEntryBlockReason, getEntryPriceNotice
 import type { MarketData } from '@/types/market-data';
 
 const SYMBOLS = ['vix', 'qqq', 'tqqq', 'sqqq'] as const;
@@ -36,4 +36,20 @@ export function getEntryBlockReason(md: MarketData | null): string | null {
     return `TQQQ and SQQQ prices are from different dates (${formatDate(t)} vs ${formatDate(s)}) — refresh before entering.`;
   }
   return null;
+}
+
+/** Non-blocking notice: while the market is open, free-tier prices are the previous close. */
+export function getEntryPriceNotice(
+  md: MarketData | null,
+  marketOpen: boolean,
+  now: Date = new Date()
+): string | null {
+  if (!md || !marketOpen) return null;
+  const today = now.toLocaleDateString('en-CA', { timeZone: 'America/New_York' });
+  const dates = [md.tqqq.asOf, md.sqqq.asOf].filter((d): d is string => !!d);
+  if (dates.length === 0) return null;
+  const oldest = dates.reduce((a, b) => (b < a ? b : a));
+  return oldest < today
+    ? `Live prices unavailable — entry will be recorded at the ${formatDate(oldest)} close.`
+    : null;
 }

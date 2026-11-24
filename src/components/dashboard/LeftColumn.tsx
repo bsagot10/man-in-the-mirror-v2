@@ -14,7 +14,7 @@ import type { PositionSizing } from '@/lib/market-analysis/positionSizing';
 import type { VixRegime, MarketTrend } from '@/types/chart-types';
 import type { PortfolioMetrics, StopReason } from '@/hooks/useDashboard';
 import type { MarketData } from '@/types/market-data';
-import { getEntryBlockReason } from '@/lib/market-data/provenance';
+import { getEntryBlockReason, getEntryPriceNotice } from '@/lib/market-data/provenance';
 
 // ============================================================================
 // Types
@@ -40,6 +40,7 @@ export interface LeftColumnProps {
   positions: Position[];
   positionSizing: PositionSizing;
   committedSizing: PositionSizing | null;
+  marketOpen?: boolean;
 }
 
 // ============================================================================
@@ -63,11 +64,13 @@ export function LeftColumn({
   stopReason,
   positionActive,
   portfolioMetrics,
+  marketOpen = false,
 }: LeftColumnProps) {
   const tqqqStopped = stopReason === 'TQQQ' || stopReason === 'both';
   const sqqqStopped = stopReason === 'SQQQ' || stopReason === 'both';
   const anyStopped = stopReason !== null;
   const entryBlockReason = getEntryBlockReason(marketData);
+  const entryPriceNotice = entryBlockReason ? null : getEntryPriceNotice(marketData, marketOpen);
 
   return (
     <div data-testid="left-column" className="left-column">
@@ -124,6 +127,11 @@ export function LeftColumn({
             {entryBlockReason && (
               <p className="helper-text" role="alert" style={{ fontSize: '0.75rem', color: 'var(--negative)', marginTop: '0.25rem' }}>
                 {entryBlockReason}
+              </p>
+            )}
+            {entryPriceNotice && (
+              <p className="helper-text" role="status" data-testid="entry-price-notice" style={{ fontSize: '0.75rem', color: '#7a4d00', marginTop: '0.25rem' }}>
+                {entryPriceNotice}
               </p>
             )}
           </div>

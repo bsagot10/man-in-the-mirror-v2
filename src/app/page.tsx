@@ -168,6 +168,7 @@ export default function Dashboard() {
           accountSize={accountSize}
           setAccountSize={setAccountSize}
           handleUpdateAccountSize={handleUpdateAccountSize}
+          marketOpen={marketOpen}
           entryScore={entryScore}
           loading={loading}
           error={error}

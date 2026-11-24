@@ -2,7 +2,7 @@
 // Purpose: Tests for quote-date provenance helpers (as-of summary label, entry block reasons).
 // Key exports: none (test file)
 import { describe, it, expect, beforeEach, afterEach } from 'vitest';
-import { getAsOfSummary, getEntryBlockReason } from '@/lib/market-data/provenance';
+import { getAsOfSummary, getEntryBlockReason, getEntryPriceNotice } from '@/lib/market-data/provenance';
 import type { MarketData, SymbolData } from '@/types/market-data';
 
 function sym(asOf?: string): SymbolData {
@@ -104,5 +104,32 @@ describe('getEntryBlockReason', () => {
 
   it('null md -> null', () => {
     expect(getEntryBlockReason(null)).toBeNull();
+  });
+});
+
+describe('getEntryPriceNotice', () => {
+  const now = new Date('2026-11-24T17:35:00Z');
+
+  it('warns when market open and prices are from a prior close', () => {
+    expect(getEntryPriceNotice(md({ tqqq: '2026-11-23', sqqq: '2026-11-23' }), true, now)).toContain('Nov 23 close');
+  });
+  it('is null when prices are from today', () => {
+    expect(getEntryPriceNotice(md({ tqqq: '2026-11-24', sqqq: '2026-11-24' }), true, now)).toBeNull();
+  });
+  it('is null when market closed', () => {
+    expect(getEntryPriceNotice(md({ tqqq: '2026-11-23', sqqq: '2026-11-23' }), false, now)).toBeNull();
+  });
+  it('is null when md is null', () => {
+    expect(getEntryPriceNotice(null, true, now)).toBeNull();
+  });
+  it('is null when asOf missing', () => {
+    expect(getEntryPriceNotice(md({}), true, now)).toBeNull();
+  });
+  it('uses the oldest date', () => {
+    expect(getEntryPriceNotice(md({ tqqq: '2026-11-23', sqqq: '2026-11-20' }), true, now)).toContain('Nov 20');
+  });
+  it('uses New York date near UTC midnight', () => {
+    const late = new Date('2026-11-25T02:00:00Z');
+    expect(getEntryPriceNotice(md({ tqqq: '2026-11-24', sqqq: '2026-11-24' }), true, late)).toBeNull();
   });
 });
