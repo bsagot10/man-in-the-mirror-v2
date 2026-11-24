@@ -209,7 +209,7 @@ export function classifyError(error: unknown): {
 // Types
 // ============================================================================
 
-interface SymbolQuote {
+export interface SymbolQuote {
   currentPrice: number;
   previousClose: number;
   change: number;
@@ -434,6 +434,16 @@ function buildQuoteFromDailyBars(bars: HistoricalDataPoint[]): SymbolQuote | nul
     timestamp: `${last.date}T00:00:00.000Z`,
     asOf: last.date,
   };
+}
+
+/**
+ * Pick the quote with the newer asOf (YYYY-MM-DD). Missing asOf is oldest;
+ * ties and nulls prefer `a`.
+ */
+export function pickNewerQuote(a: SymbolQuote | null, b: SymbolQuote | null): SymbolQuote | null {
+  if (!a) return b;
+  if (!b) return a;
+  return (b.asOf ?? '') > (a.asOf ?? '') ? b : a;
 }
 
 /**
@@ -698,6 +708,10 @@ export class MarketDataClient {
   // Single-flight guard: concurrent quote requests share one historical fetch
   private historicalInFlight?: Promise<HistoricalData>;
 
+  // VIX series BEFORE alignVixToEndDate: real observations only, so a quote
+  // is never built from synthetic forward-filled bars.
+  private vixRawHistory: HistoricalDataPoint[] = [];
+
   // Metrics tracking
   private metrics = {
     cacheHits: 0,
@@ -895,14 +909,16 @@ export class MarketDataClient {
       if (symbol === SYMBOLS.VIX) {
         const fredData = await fetchFredVixHistorical(10);
         const fredQuote = fredData ? buildQuoteFromDailyBars(fredData) : null;
-        if (fredQuote) {
-          structuredLog(LogLevel.INFO, 'FRED VIX quote fallback succeeded', {
+        // FRED lags 1-2 days; real VIX history may hold a newer bar
+        const best = pickNewerQuote(fredQuote, await this.vixHistoryQuote());
+        if (best) {
+          structuredLog(LogLevel.INFO, best === fredQuote ? 'FRED VIX quote fallback succeeded' : 'VIX quote built from newer real history bar', {
             component: 'MarketDataClient',
             action: 'fetchQuote',
             symbol,
-            source: 'fred',
+            source: best === fredQuote ? 'fred' : 'yahoo',
           });
-          return fredQuote;
+          return best;
         }
       }
 
@@ -917,6 +933,20 @@ export class MarketDataClient {
 
       return null;
     }
+  }
+
+  /**
+   * Quote from the latest real (non-forward-filled) VIX history bars.
+   * fetchHistoricalData is cached + single-flight, so this adds no network
+   * call when TQQQ/SQQQ quotes already triggered it.
+   */
+  private async vixHistoryQuote(): Promise<SymbolQuote | null> {
+    try {
+      await this.fetchHistoricalData(30);
+    } catch {
+      return null;
+    }
+    return buildQuoteFromDailyBars(this.vixRawHistory);
   }
 
   /**
@@ -957,6 +987,8 @@ export class MarketDataClient {
         this.fetchSymbolHistory(SYMBOLS.TQQQ, startDate, endDate),
         this.fetchSymbolHistory(SYMBOLS.SQQQ, startDate, endDate),
       ]);
+
+      this.vixRawHistory = vixHistory ?? [];
 
       // Align VIX to match TQQQ/SQQQ end date (handles FRED 1-day lag)
       const tqqqEndDate = tqqqHistory?.[tqqqHistory.length - 1]?.date;
@@ -1271,6 +1303,7 @@ export class MarketDataClient {
    */
   clearCache(): void {
     this.cache = {};
+    this.vixRawHistory = [];
   }
 }
 

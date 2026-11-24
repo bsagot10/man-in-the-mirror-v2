@@ -18,6 +18,8 @@ import {
   classifyError,
   LogLevel,
   structuredLog,
+  pickNewerQuote,
+  type SymbolQuote,
 } from '@/lib/market-data/client';
 
 // Mock yahoo-finance2 as a class constructor
@@ -2030,5 +2032,124 @@ describe('asOf trading date', () => {
     const result = formatSymbolData({ regularMarketPrice: 50, regularMarketPreviousClose: 49 });
     expect(result.asOf).toBeUndefined();
     expect('asOf' in result).toBe(false);
+  });
+});
+
+
+describe('VIX quote prefers newer real history over lagging FRED', () => {
+  const D20 = Date.UTC(2026, 10, 20, 12);
+  const D23 = Date.UTC(2026, 10, 23, 12);
+  const etfAggs = {
+    ok: true,
+    json: () => Promise.resolve({
+      status: 'DELAYED',
+      results: [
+        { t: D20, o: 83, h: 84, l: 82, c: 84.0, v: 40000000 },
+        { t: D23, o: 84, h: 86, l: 83, c: 85.8, v: 50000000 },
+      ],
+    }),
+  };
+
+  function setup(fredCsv: string, yahooVixHistory: 'fail' | Array<{ date: Date; close: number }>) {
+    global.fetch = vi.fn().mockImplementation((url: string) => {
+      if (url.includes('/v2/snapshot/')) {
+        return Promise.resolve({ ok: false, status: 403, json: () => Promise.resolve({ status: 'NOT_AUTHORIZED' }) });
+      }
+      if (url.includes('/v2/aggs/')) return Promise.resolve(etfAggs);
+      if (url.includes('fred.stlouisfed.org')) {
+        return Promise.resolve({ ok: true, text: () => Promise.resolve(fredCsv) });
+      }
+      return Promise.resolve({ ok: false });
+    });
+    mockQuote.mockRejectedValue(new Error('Failed to get crumb, status 429'));
+    mockHistorical.mockImplementation((symbol: string) => {
+      if (symbol === '^VIX' && yahooVixHistory !== 'fail') {
+        return Promise.resolve(yahooVixHistory.map(h => ({ date: h.date, open: h.close, high: h.close, low: h.close, close: h.close, volume: 0 })));
+      }
+      return Promise.reject(new Error('historical unavailable'));
+    });
+  }
+
+  beforeEach(async () => {
+    const m = await import('yahoo-finance2') as unknown as {
+      __mockQuote: ReturnType<typeof vi.fn>;
+      __mockHistorical: ReturnType<typeof vi.fn>;
+    };
+    mockQuote = m.__mockQuote;
+    mockHistorical = m.__mockHistorical;
+    vi.clearAllMocks();
+    process.env.POLYGON_API_KEY = 'test-key';
+  });
+
+  afterEach(() => {
+    delete process.env.POLYGON_API_KEY;
+  });
+
+  it('uses the newer real Yahoo VIX history bar when FRED lags', async () => {
+    setup('DATE,VIXCLS\n2026-11-19,34.00\n2026-11-20,35.89\n', [
+      { date: new Date(D20), close: 35.89 },
+      { date: new Date(D23), close: 26.62 },
+    ]);
+    const c = new MarketDataClient();
+    c.clearCache();
+    const result = await c.fetchCurrentData();
+    expect(result.vix.currentPrice).toBe(26.62);
+    expect(result.vix.asOf).toBe('2026-11-23');
+    expect(result.vix.previousClose).toBe(35.89);
+  });
+
+  it('keeps the FRED quote when it is newer than the VIX history', async () => {
+    setup('DATE,VIXCLS\n2026-11-20,35.89\n2026-11-23,27.10\n', [
+      { date: new Date(D20), close: 35.89 },
+    ]);
+    const c = new MarketDataClient();
+    c.clearCache();
+    const result = await c.fetchCurrentData();
+    expect(result.vix.currentPrice).toBe(27.10);
+    expect(result.vix.asOf).toBe('2026-11-23');
+  });
+
+  it('never builds the VIX quote from synthetic forward-filled bars', async () => {
+    setup('DATE,VIXCLS\n2026-11-19,34.00\n2026-11-20,35.89\n', 'fail');
+    const c = new MarketDataClient();
+    c.clearCache();
+    const hist = await c.fetchHistoricalData();
+    const last = hist.vix[hist.vix.length - 1];
+    expect(last.date).toBe('2026-11-23');
+    expect(last.close).toBe(35.89);
+    const result = await c.fetchCurrentData();
+    expect(result.vix.currentPrice).toBe(35.89);
+    expect(result.vix.asOf).toBe('2026-11-20');
+  });
+});
+
+describe('pickNewerQuote', () => {
+  const q = (asOf?: string, price = 1): SymbolQuote => ({
+    currentPrice: price, previousClose: price, change: 0, changePercent: 0, volume: 0,
+    timestamp: 't', ...(asOf ? { asOf } : {}),
+  });
+
+  it('returns a when a is newer', () => {
+    const a = q('2026-11-23', 1), b = q('2026-11-20', 2);
+    expect(pickNewerQuote(a, b)).toBe(a);
+  });
+  it('returns b when b is newer', () => {
+    const a = q('2026-11-20', 1), b = q('2026-11-23', 2);
+    expect(pickNewerQuote(a, b)).toBe(b);
+  });
+  it('prefers a on a tie', () => {
+    const a = q('2026-11-20', 1), b = q('2026-11-20', 2);
+    expect(pickNewerQuote(a, b)).toBe(a);
+  });
+  it('handles nulls', () => {
+    const b = q('2026-11-20');
+    expect(pickNewerQuote(null, b)).toBe(b);
+    expect(pickNewerQuote(b, null)).toBe(b);
+    expect(pickNewerQuote(null, null)).toBeNull();
+  });
+  it('treats missing asOf as oldest', () => {
+    const noDate = q(undefined, 1), dated = q('2026-11-20', 2);
+    expect(pickNewerQuote(noDate, dated)).toBe(dated);
+    expect(pickNewerQuote(dated, noDate)).toBe(dated);
   });
 });
