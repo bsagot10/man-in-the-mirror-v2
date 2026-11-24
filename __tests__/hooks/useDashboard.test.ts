@@ -36,7 +36,10 @@ const mocks = vi.hoisted(() => {
     actualDate: '2026-11-01',
     fetchPrices: () => Promise.resolve(),
     // Like the real hook: manual prices replace what the hook sees next render.
-    setPricesManually: vi.fn((p: { tqqq: number; sqqq: number }) => { entry.prices = p; }),
+    setPricesManually: vi.fn((p: { tqqq: number; sqqq: number }, d?: string) => {
+      entry.prices = p;
+      if (d !== undefined) entry.actualDate = d;
+    }),
     clearPrices: () => {},
   };
   return { state, entry, setTqqqPrice: (p: number) => { state.market = build(p); } };
@@ -46,10 +49,12 @@ vi.mock('@/hooks/useMarketData', () => ({ useMarketData: () => mocks.state.marke
 vi.mock('@/hooks/useEntryPrices', () => ({ useEntryPrices: () => mocks.entry }));
 
 import { useDashboard } from '@/hooks/useDashboard';
+import { toLocalDateString } from '@/types/chart-types';
 
 // setPricesManually mutates entry.prices; reset so no describe inherits another's.
 beforeEach(() => {
   mocks.entry.prices = { tqqq: 50, sqqq: 20 };
+  mocks.entry.actualDate = '2026-11-01';
   mocks.entry.setPricesManually.mockClear();
 });
 
@@ -135,7 +140,7 @@ describe('useDashboard reopening a closed position', () => {
     expect(tqqq?.entryPrice).toBe(60);
     expect(tqqq?.shares).toBe(result.current.positionSizing.tqqqShares);
     expect(tqqq?.shares).not.toBe(5);
-    expect(mocks.entry.setPricesManually).toHaveBeenCalledWith({ tqqq: 60, sqqq: 20 });
+    expect(mocks.entry.setPricesManually).toHaveBeenCalledWith({ tqqq: 60, sqqq: 20 }, toLocalDateString());
   });
 });
 
@@ -203,5 +208,20 @@ describe('useDashboard entry date uses the local calendar day', () => {
     act(() => result.current.handleUpdateAccountSize());
     expect(result.current.positionEntryDate).toBe('2026-11-23');
     expect(localStorage.getItem('positionEntryDate')).toBe('2026-11-23');
+  });
+});
+
+describe('useDashboard fresh entry replaces the stale historical entry date', () => {
+  beforeEach(() => {
+    localStorage.clear();
+    mocks.setTqqqPrice(52);
+  });
+
+  it('handleUpdateAccountSize passes today to setPricesManually so position rows use it', () => {
+    const today = toLocalDateString();
+    const { result } = renderHook(() => useDashboard());
+    act(() => result.current.handleUpdateAccountSize());
+    expect(mocks.entry.setPricesManually).toHaveBeenCalledWith(expect.anything(), today);
+    expect(result.current.positions.find((p) => p.symbol === 'TQQQ')?.entryDate).toBe(today);
   });
 });

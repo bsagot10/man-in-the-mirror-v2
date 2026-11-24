@@ -292,12 +292,12 @@ export function useDashboard(): DashboardState {
 
     if (marketData) {
       const newEntryPrices = { tqqq: marketData.tqqq.currentPrice, sqqq: marketData.sqqq.currentPrice };
-      setHistoricalPricesManually(newEntryPrices);
+      const today = toLocalDateString();
+      setHistoricalPricesManually(newEntryPrices, today);
       setStoredEntryPrices(newEntryPrices);
       const newShares = { tqqq: positionSizing.tqqqShares, sqqq: positionSizing.sqqqShares };
       setStoredShares(newShares);
       setCommittedSizing(positionSizing);
-      const today = toLocalDateString();
       try {
         localStorage.setItem('positionShares', JSON.stringify(newShares));
         localStorage.setItem('committedSizing', JSON.stringify(positionSizing));
