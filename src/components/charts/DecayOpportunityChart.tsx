@@ -17,6 +17,7 @@ import type { Data, Config, Shape } from 'plotly.js';
 import type { PriceDataPoint } from '@/types/chart-types';
 import {
   CHART_COLORS,
+  CHART_ANNOTATION_TEXT_COLORS,
   SPLINE_CONFIG,
   LAYOUT_CONFIG,
   AXIS_CONFIG,
@@ -194,7 +195,7 @@ export function DecayOpportunityChart({
         showarrow: false,
         font: {
           size: 10,
-          color: CHART_COLORS.entryThreshold,
+          color: CHART_ANNOTATION_TEXT_COLORS.entryThreshold,
         },
         xshift: 5,
       },

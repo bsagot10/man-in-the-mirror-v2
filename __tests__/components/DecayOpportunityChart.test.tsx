@@ -10,7 +10,7 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { render, screen } from '@testing-library/react';
 import '@testing-library/jest-dom/vitest';
-import { CHART_COLORS, SPLINE_CONFIG } from '@/lib/chart-config';
+import { CHART_ANNOTATION_TEXT_COLORS, CHART_COLORS, SPLINE_CONFIG } from '@/lib/chart-config';
 
 // Mock next/dynamic to avoid SSR loading state
 vi.mock('next/dynamic', () => ({
@@ -211,6 +211,7 @@ describe('DecayOpportunityChart', () => {
       expect(thresholdAnnotation).toBeDefined();
       expect(thresholdAnnotation.text).toContain('-5');
       expect(thresholdAnnotation.showarrow).toBe(false);
+      expect(thresholdAnnotation.font.color).toBe(CHART_ANNOTATION_TEXT_COLORS.entryThreshold);
     });
 
     it('pins the x-axis range to the data extent so the line ends flush with the plot edge', () => {

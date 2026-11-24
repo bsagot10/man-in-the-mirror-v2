@@ -36,22 +36,22 @@ interface MarketMetricsProps {
 // ============================================================================
 
 const SIGNAL_COLORS: Record<Signal, string> = {
-  ENTER: 'text-green-500',
-  WATCH: 'text-yellow-500',
-  WAIT: 'text-red-500',
+  ENTER: 'text-green-800',
+  WATCH: 'text-[#7a4d00]',
+  WAIT: 'text-red-700',
 };
 
 const REGIME_COLORS: Record<VixRegime, string> = {
-  Low: 'text-green-500',
-  Moderate: 'text-yellow-500',
-  High: 'text-orange-500',
-  Extreme: 'text-red-500',
+  Low: 'text-green-800',
+  Moderate: 'text-[#7a4d00]',
+  High: 'text-orange-700',
+  Extreme: 'text-red-700',
 };
 
 const TREND_CONFIG: Record<MarketTrend, { color: string; arrow: string; label: string }> = {
-  bullish: { color: 'text-green-500', arrow: '↑', label: 'Bullish' },
-  bearish: { color: 'text-red-500', arrow: '↓', label: 'Bearish' },
-  neutral: { color: 'text-yellow-500', arrow: '→', label: 'Neutral' },
+  bullish: { color: 'text-green-800', arrow: '↑', label: 'Bullish' },
+  bearish: { color: 'text-red-700', arrow: '↓', label: 'Bearish' },
+  neutral: { color: 'text-[#7a4d00]', arrow: '→', label: 'Neutral' },
 };
 
 const DEFAULT_COLOR = 'text-warm-600';
@@ -124,7 +124,7 @@ export function MarketMetrics({
           <h2 className="text-lg font-semibold text-warm-800">📈 MARKET CONDITIONS</h2>
         </div>
         <div className="card-content">
-          <div data-testid="market-metrics-error" className="text-red-500 text-center py-4">
+          <div data-testid="market-metrics-error" className="text-red-700 text-center py-4">
             {error}
           </div>
         </div>
@@ -139,7 +139,7 @@ export function MarketMetrics({
         {isStale && cacheAge !== undefined && (
           <div
             data-testid="stale-data-indicator"
-            className="text-yellow-500 text-xs font-medium"
+            className="text-[#7a4d00] text-xs font-medium"
           >
             ⚠️ Using cached data ({Math.floor(cacheAge / 60000)}m old)
           </div>

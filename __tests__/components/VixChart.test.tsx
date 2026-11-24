@@ -10,7 +10,7 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { render, screen } from '@testing-library/react';
 import '@testing-library/jest-dom/vitest';
-import { CHART_COLORS, SPLINE_CONFIG } from '@/lib/chart-config';
+import { CHART_ANNOTATION_TEXT_COLORS, CHART_COLORS, SPLINE_CONFIG } from '@/lib/chart-config';
 
 // Mock next/dynamic to avoid SSR loading state
 vi.mock('next/dynamic', () => ({
@@ -135,6 +135,7 @@ describe('VixChart', () => {
       expect(thresholdAnnotation).toBeDefined();
       expect(thresholdAnnotation.text).toContain('20');
       expect(thresholdAnnotation.showarrow).toBe(false);
+      expect(thresholdAnnotation.font.color).toBe(CHART_ANNOTATION_TEXT_COLORS.entryThreshold);
     });
 
     it('does not add a threshold annotation when showThreshold is false', () => {

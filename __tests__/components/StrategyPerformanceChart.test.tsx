@@ -11,7 +11,7 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { render, screen } from '@testing-library/react';
 import '@testing-library/jest-dom/vitest';
-import { CHART_COLORS, SPLINE_CONFIG } from '@/lib/chart-config';
+import { CHART_ANNOTATION_TEXT_COLORS, CHART_COLORS, SPLINE_CONFIG } from '@/lib/chart-config';
 
 // Mock next/dynamic to avoid SSR loading state
 vi.mock('next/dynamic', () => ({
@@ -246,6 +246,7 @@ describe('StrategyPerformanceChart', () => {
         (a: { text?: string }) => a.text?.includes('Target: 20%')
       );
       expect(profitAnnotation).toBeDefined();
+      expect(profitAnnotation.font.color).toBe(CHART_ANNOTATION_TEXT_COLORS.profitTarget);
     });
 
     it('includes stop loss annotation', () => {
@@ -257,6 +258,7 @@ describe('StrategyPerformanceChart', () => {
         (a: { text?: string }) => a.text?.includes('Stop: -15%')
       );
       expect(stopAnnotation).toBeDefined();
+      expect(stopAnnotation.font.color).toBe(CHART_ANNOTATION_TEXT_COLORS.stopLoss);
     });
   });
 

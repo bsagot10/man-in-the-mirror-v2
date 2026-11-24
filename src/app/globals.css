@@ -681,7 +681,7 @@ body {
 
   .metric-status.low {
     background: rgba(250, 173, 20, 0.1);
-    color: var(--warning);
+    color: #7a4d00;
   }
 
   /* Status Badge */

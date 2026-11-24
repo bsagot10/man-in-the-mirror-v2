@@ -10,7 +10,7 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { render, screen } from '@testing-library/react';
 import '@testing-library/jest-dom/vitest';
-import { CHART_COLORS, SPLINE_CONFIG } from '@/lib/chart-config';
+import { CHART_ANNOTATION_TEXT_COLORS, CHART_COLORS, SPLINE_CONFIG } from '@/lib/chart-config';
 
 // Mock next/dynamic to avoid SSR loading state
 vi.mock('next/dynamic', () => ({
@@ -395,6 +395,7 @@ describe('TqqqSqqqChart', () => {
       expect(annotation.text).toContain('TQQQ');
       expect(annotation.text).toContain('58.67');
       expect(annotation.showarrow).toBe(false);
+      expect(annotation.font.color).toBe(CHART_ANNOTATION_TEXT_COLORS.tqqq);
     });
 
     it('labels the SQQQ stop-loss line with its dollar value', () => {

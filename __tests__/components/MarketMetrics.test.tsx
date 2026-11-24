@@ -54,19 +54,19 @@ describe('MarketMetrics Component', () => {
     it('applies correct color for ENTER signal', () => {
       render(<MarketMetrics entryScore={75} signal="ENTER" />);
       const signalElement = screen.getByTestId('entry-signal');
-      expect(signalElement).toHaveClass('text-green-500');
+      expect(signalElement).toHaveClass('text-green-800');
     });
 
     it('applies correct color for WATCH signal', () => {
       render(<MarketMetrics entryScore={60} signal="WATCH" />);
       const signalElement = screen.getByTestId('entry-signal');
-      expect(signalElement).toHaveClass('text-yellow-500');
+      expect(signalElement).toHaveClass('text-[#7a4d00]');
     });
 
     it('applies correct color for WAIT signal', () => {
       render(<MarketMetrics entryScore={40} signal="WAIT" />);
       const signalElement = screen.getByTestId('entry-signal');
-      expect(signalElement).toHaveClass('text-red-500');
+      expect(signalElement).toHaveClass('text-red-700');
     });
   });
 
@@ -104,19 +104,19 @@ describe('MarketMetrics Component', () => {
     it('applies correct color for Low regime', () => {
       render(<MarketMetrics vixValue={12} vixRegime="Low" />);
       const regimeElement = screen.getByTestId('vix-regime');
-      expect(regimeElement).toHaveClass('text-green-500');
+      expect(regimeElement).toHaveClass('text-green-800');
     });
 
     it('applies correct color for High regime', () => {
       render(<MarketMetrics vixValue={25} vixRegime="High" />);
       const regimeElement = screen.getByTestId('vix-regime');
-      expect(regimeElement).toHaveClass('text-orange-500');
+      expect(regimeElement).toHaveClass('text-orange-700');
     });
 
     it('applies correct color for Extreme regime', () => {
       render(<MarketMetrics vixValue={35} vixRegime="Extreme" />);
       const regimeElement = screen.getByTestId('vix-regime');
-      expect(regimeElement).toHaveClass('text-red-500');
+      expect(regimeElement).toHaveClass('text-red-700');
     });
   });
 
@@ -147,13 +147,13 @@ describe('MarketMetrics Component', () => {
     it('applies green color for bullish trend', () => {
       render(<MarketMetrics marketTrend="bullish" />);
       const trendElement = screen.getByTestId('trend-arrow');
-      expect(trendElement).toHaveClass('text-green-500');
+      expect(trendElement).toHaveClass('text-green-800');
     });
 
     it('applies red color for bearish trend', () => {
       render(<MarketMetrics marketTrend="bearish" />);
       const trendElement = screen.getByTestId('trend-arrow');
-      expect(trendElement).toHaveClass('text-red-500');
+      expect(trendElement).toHaveClass('text-red-700');
     });
   });
 
@@ -181,7 +181,7 @@ describe('MarketMetrics Component', () => {
     it('applies error styling', () => {
       render(<MarketMetrics error="Failed to load data" />);
       const errorElement = screen.getByTestId('market-metrics-error');
-      expect(errorElement).toHaveClass('text-red-500');
+      expect(errorElement).toHaveClass('text-red-700');
     });
   });
 
@@ -281,7 +281,7 @@ describe('MarketMetrics Component', () => {
         />
       );
       const indicator = screen.getByTestId('stale-data-indicator');
-      expect(indicator).toHaveClass('text-yellow-500');
+      expect(indicator).toHaveClass('text-[#7a4d00]');
     });
   });
 });

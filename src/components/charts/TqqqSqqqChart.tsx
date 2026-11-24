@@ -15,6 +15,7 @@ import { useMemo } from 'react';
 import type { Data, Layout, Config, Shape } from 'plotly.js';
 import {
   CHART_COLORS,
+  CHART_ANNOTATION_TEXT_COLORS,
   SPLINE_CONFIG,
   LAYOUT_CONFIG,
   AXIS_CONFIG,
@@ -207,7 +208,7 @@ export function TqqqSqqqChart({
         yanchor: 'middle' as const,
         text: `TQQQ Stop: $${tqqqStop.toFixed(2)}`,
         showarrow: false,
-        font: { size: 10, color: CHART_COLORS.tqqq },
+        font: { size: 10, color: CHART_ANNOTATION_TEXT_COLORS.tqqq },
         xshift: 5,
       });
     }
@@ -219,7 +220,7 @@ export function TqqqSqqqChart({
         yanchor: 'middle' as const,
         text: `SQQQ Stop: $${sqqqStop.toFixed(2)}`,
         showarrow: false,
-        font: { size: 10, color: CHART_COLORS.sqqq },
+        font: { size: 10, color: CHART_ANNOTATION_TEXT_COLORS.sqqq },
         xshift: 5,
       });
     }

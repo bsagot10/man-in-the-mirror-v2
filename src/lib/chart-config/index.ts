@@ -27,6 +27,16 @@ export const CHART_COLORS = {
   strategyPnl: '#ff8c42',   // Orange for strategy P&L
 } as const;
 
+// Darker same-hue shades for 10px annotation TEXT on the cream theme (WCAG AA >= 4.5:1).
+// Line/trace colours above stay unchanged.
+export const CHART_ANNOTATION_TEXT_COLORS = {
+  entryThreshold: '#9A5000',
+  tqqq: '#00697A',
+  sqqq: '#B0124B',
+  profitTarget: '#2F6F33',
+  stopLoss: '#B71C1C',
+} as const;
+
 // ============================================================================
 // Spline Configuration - PERFECT - DO NOT MODIFY
 // ============================================================================

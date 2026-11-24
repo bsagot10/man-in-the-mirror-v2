@@ -15,6 +15,7 @@ import { useMemo } from 'react';
 import type { Data, Layout, Config, Shape } from 'plotly.js';
 import {
   CHART_COLORS,
+  CHART_ANNOTATION_TEXT_COLORS,
   SPLINE_CONFIG,
   LAYOUT_CONFIG,
   AXIS_CONFIG,
@@ -149,7 +150,7 @@ export function VixChart({
         showarrow: false,
         font: {
           size: 10,
-          color: CHART_COLORS.entryThreshold,
+          color: CHART_ANNOTATION_TEXT_COLORS.entryThreshold,
         },
         xshift: 5,
       },

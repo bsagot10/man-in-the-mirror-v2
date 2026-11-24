@@ -17,6 +17,7 @@ import type { Data, Config, Shape } from 'plotly.js';
 import type { PriceDataPoint } from '@/types/chart-types';
 import {
   CHART_COLORS,
+  CHART_ANNOTATION_TEXT_COLORS,
   SPLINE_CONFIG,
   LAYOUT_CONFIG,
   AXIS_CONFIG,
@@ -212,7 +213,7 @@ export function StrategyPerformanceChart({
         showarrow: false,
         font: {
           size: 10,
-          color: CHART_COLORS.decay,
+          color: CHART_ANNOTATION_TEXT_COLORS.profitTarget,
         },
         xshift: 5,
       },
@@ -225,7 +226,7 @@ export function StrategyPerformanceChart({
         showarrow: false,
         font: {
           size: 10,
-          color: CHART_COLORS.vix,
+          color: CHART_ANNOTATION_TEXT_COLORS.stopLoss,
         },
         xshift: 5,
       },
