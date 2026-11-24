@@ -10,6 +10,7 @@
 'use client';
 
 import { useDashboard } from '@/hooks/useDashboard';
+import { getAsOfSummary } from '@/lib/market-data/provenance';
 import { LeftColumn } from '@/components/dashboard/LeftColumn';
 import { ChartsColumn } from '@/components/dashboard/ChartsColumn';
 import { RightColumn } from '@/components/dashboard/RightColumn';
@@ -72,6 +73,8 @@ export default function Dashboard() {
     fetchHistoricalPrices,
   } = state;
 
+  const asOfSummary = getAsOfSummary(marketData);
+
   // Handle error state
   if (error && !marketData) {
     return (
@@ -102,7 +105,15 @@ export default function Dashboard() {
       </div>
 
       {/* Cached Data Indicator */}
-      <div className="cached-indicator">Cached Data</div>
+      {asOfSummary && (
+        <div
+          className={`cached-indicator${asOfSummary.stale ? ' stale' : ''}`}
+          data-testid="data-as-of"
+          role="status"
+        >
+          {asOfSummary.label}{asOfSummary.stale ? ' · stale' : ''}
+        </div>
+      )}
 
       {/* Loading Overlay */}
       {loading && !marketData && (
