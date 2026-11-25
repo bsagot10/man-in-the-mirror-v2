@@ -56,11 +56,15 @@ When making code changes, Claude MUST:
 
 ## Data Architecture
 
-- **Fetching**: Stooq (primary, CSV, no API key) → Yahoo Finance (fallback, `validateResult: false`) → FRED VIX (rate limit fallback)
-- **Cache TTL**: 5 min (current quotes), 15 min (historical data), API routes 30s (entry-score, market-data)
-- **Retry**: Exponential backoff (1s-5s, jitter, max 3), fail-fast on 429/4xx
-- **VIX forward-fill**: `alignVixToEndDate()` extends VIX with last known value to match ETF end dates (handles FRED 1-day lag)
-- **Node**: Requires >= 22.0.0 (yahoo-finance2 dependency)
+- **Quote sources (ETFs: QQQ/TQQQ/SQQQ)**: Polygon snapshot (skipped once a 403 flags the free tier) → TQQQ/SQQQ: last two bars of the shared 30-day history (Polygon daily aggs → Yahoo history) → Polygon daily aggs (10 days) → Yahoo quote (`validateResult: false`)
+- **Quote sources (VIX)**: Yahoo quote → only if Yahoo fails: newer (by `asOf`) of FRED VIXCLS last two closes vs. latest real bar of VIX history (`pickNewerQuote`, `vixHistoryQuote`)
+- **Free tier = no intraday**: "current" is the latest daily close; every bar-derived quote carries `asOf` (trading date, YYYY-MM-DD). Yahoo quotes derive `asOf` from `regularMarketTime` (NY date)
+- **Cache TTL**: 5 min (current quotes, `CACHE_TTL`), 15 min (historical, `HISTORICAL_CACHE_TTL`); route `revalidate`: 30s (entry-score, market-data), 300s (historical-data), 3600s (price-on-date), 0 (metrics, health)
+- **Stale fallback**: when a refresh fails, cached data is returned with `isStale: true` + `cacheAge`; refused (throws) once older than 60 min (`MAX_STALE_AGE`)
+- **Retry**: Exponential backoff (1s base, 5s cap, up to 500ms jitter, max 3 attempts) on Yahoo calls; fail-fast when the error message contains 429/400/404
+- **VIX forward-fill (charts only)**: `alignVixToEndDate()` extends VIX history with the last value to the TQQQ/SQQQ end date (skips weekends/NYSE holidays); quotes use the unfilled `vixRawHistory`, never synthetic bars
+- **Entry gating** (`provenance.ts`): `getEntryBlockReason` blocks on `isStale` or TQQQ/SQQQ `asOf` mismatch; `getEntryPriceNotice` is a non-blocking previous-close notice while the market is open
+- **Node**: yahoo-finance2 declares `engines.node >=20.0.0`
 
 ## Conventions
 
@@ -79,6 +83,6 @@ Key patterns: Component Structure (Types → Constants → Helpers → Sub-compo
 ## Gotchas
 
 - `npm run test` won't work — use `bun run test` (bun is the package manager)
-- Stooq CSV can return stale data — check timestamps
-- Yahoo Finance 429s are common — always fallback to FRED for VIX
-- Test Stooq: `curl 'https://stooq.com/q/l/?s=QQQ.US&f=sd2t2ohlcv&h&e=csv'`
+- Polygon (`api.polygon.io`) free-tier keys get 403 on the snapshot endpoint and are limited to 5 calls/min — the client stops calling snapshot after the first 403 and uses daily aggregates
+- FRED VIXCLS lags 1-2 trading days — VIX quotes prefer the newer real history bar; check `asOf` on quotes
+- Yahoo Finance 429s are common (tests/dev runs hitting live APIs can trigger them) — VIX falls back to FRED/history only after Yahoo fails; 429 is not retried
